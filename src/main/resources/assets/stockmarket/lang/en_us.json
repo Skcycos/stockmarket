@@ -1,0 +1,12 @@
+{
+  "itemGroup.stockmarket": "Stock Market",
+
+  "stockmarket.configuration.title": "Stock Market Configs",
+  "stockmarket.configuration.section.stockmarket.common.toml": "Stock Market Configs",
+  "stockmarket.configuration.section.stockmarket.common.toml.title": "Stock Market Configs",
+  "stockmarket.configuration.enabled": "Enabled",
+  "stockmarket.configuration.initialCash": "Initial Cash",
+  "stockmarket.configuration.feeRate": "Fee Rate",
+  "stockmarket.configuration.tickInterval": "Market Tick Interval",
+  "stockmarket.configuration.maxOrderQty": "Max Order Quantity"
+}

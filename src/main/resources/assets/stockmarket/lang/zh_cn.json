@@ -1,0 +1,12 @@
+{
+  "itemGroup.stockmarket": "股市风云",
+
+  "stockmarket.configuration.title": "股市风云 配置",
+  "stockmarket.configuration.section.stockmarket.common.toml": "股市风云 配置",
+  "stockmarket.configuration.section.stockmarket.common.toml.title": "股市风云 配置",
+  "stockmarket.configuration.enabled": "总开关",
+  "stockmarket.configuration.initialCash": "初始资金",
+  "stockmarket.configuration.feeRate": "手续费率",
+  "stockmarket.configuration.tickInterval": "行情更新间隔（tick）",
+  "stockmarket.configuration.maxOrderQty": "单笔最大数量"
+}

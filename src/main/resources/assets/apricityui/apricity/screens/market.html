@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="aui-font-mode" content="web">
+    <meta name="aui-viewport" content="mode=browser,zoom=1,min-zoom=0.5,max-zoom=3,zoom-step=0.1,user-scalable=true">
+    <meta name="aui-mouse-events" content="intercept">
+    <style>
+        :root {
+            --bg: rgba(18, 20, 24, 0.94);
+            --panel: #23262c;
+            --panel-soft: #2b2f37;
+            --edge: #3a3f49;
+            --ink: #e8eaf0;
+            --muted: #9aa3b2;
+            --up: #e05555;
+            --down: #58c270;
+            --gold: #d9a93f;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ink);
+            background: var(--bg);
+            font-family: "Kaiti SC", "KaiTi", "STKaiti", "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
+        }
+
+        .market {
+            width: 92%;
+            max-width: 720px;
+            max-height: 86vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--edge);
+            border-radius: 10px;
+            background: var(--panel);
+            overflow: hidden;
+            animation: panel-in .3s ease-out both;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--edge);
+            background: var(--panel-soft);
+        }
+
+        .title { font-size: 18px; letter-spacing: 2px; color: var(--gold); }
+        .sub { color: var(--muted); font-size: 11px; }
+
+        .account {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--edge);
+            background: rgba(43, 47, 55, .5);
+            font-size: 12px;
+        }
+
+        .account span { color: var(--muted); }
+        .account b { color: var(--ink); font-weight: 600; }
+
+        .orders {
+            display: flex;
+            align-items: center;
+            padding: 6px 14px;
+            border-bottom: 1px solid var(--edge);
+            background: rgba(43, 47, 55, .3);
+            font-size: 11px;
+            gap: 10px;
+        }
+
+        .orders-label { color: var(--muted); flex: none; }
+        .orders #aui-orders { color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+        .body { display: flex; flex: 1; min-height: 0; }
+
+        .stocks {
+            flex: 1.4;
+            min-width: 0;
+            overflow-y: auto;
+            border-right: 1px solid var(--edge);
+            padding: 6px;
+        }
+
+        .stock-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 10px;
+            margin-bottom: 4px;
+            border: 1px solid var(--edge);
+            border-radius: 6px;
+            background: var(--panel-soft);
+            font-size: 13px;
+        }
+
+        .stock-row:hover { background: #32363f; }
+        .stock-row.selected { border-color: var(--gold); background: #3a3423; }
+
+        .stock-name { color: var(--ink); }
+        .stock-price { font-size: 12px; }
+        .stock-up { color: var(--up); }
+        .stock-down { color: var(--down); }
+
+        .trade {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .trade-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .trade-row .label { color: var(--muted); }
+
+        .stepper { display: flex; align-items: center; }
+        .stepper button {
+            width: 26px;
+            height: 24px;
+            border: 1px solid var(--edge);
+            border-radius: 5px;
+            background: var(--panel-soft);
+            color: var(--ink);
+            font-size: 15px;
+        }
+        .stepper button:hover { background: #3a3f49; }
+        .stepper .qty {
+            min-width: 64px;
+            text-align: center;
+            color: var(--gold);
+            font-size: 15px;
+        }
+
+        .actions { margin-top: auto; display: flex; gap: 8px; }
+        .btn {
+            flex: 1;
+            padding: 8px 0;
+            border: 1px solid var(--edge);
+            border-radius: 6px;
+            color: var(--ink);
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        .btn:hover { filter: brightness(1.15); }
+        .btn.buy { background: #1e5c33; }
+        .btn.sell { background: #6e2a2a; }
+        .btn.refresh {
+            flex: none;
+            width: 60px;
+            background: var(--panel-soft);
+            font-size: 12px;
+            padding: 8px 0;
+        }
+
+        .msg {
+            padding: 6px 12px;
+            border-top: 1px solid var(--edge);
+            color: var(--gold);
+            font-size: 12px;
+            min-height: 22px;
+        }
+
+        .kline {
+            padding: 8px 12px;
+            border-top: 1px solid var(--edge);
+        }
+
+        .kline-label {
+            color: var(--muted);
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+
+        .kline canvas {
+            display: block;
+            width: 100%;
+            height: 150px;
+        }
+
+        .foot {
+            padding: 6px 12px;
+            border-top: 1px solid var(--edge);
+            color: var(--muted);
+            font-size: 11px;
+            text-align: right;
+        }
+
+        @keyframes panel-in {
+            from { opacity: 0; transform: translateY(8px) scale(.99); }
+            to { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <main class="market">
+        <header class="header">
+            <div>
+                <div class="title">股市风云 · 食韵筑家Ⅲ</div>
+                <div class="sub">服务器股市 · 行情每 5 秒更新</div>
+            </div>
+            <button class="btn refresh" id="aui-refresh" type="button">刷新</button>
+        </header>
+
+        <div class="account">
+            <span>现金 <b id="aui-cash">—</b></span>
+            <span>总资产 <b id="aui-total">—</b></span>
+            <span>持仓 <b id="aui-holdings">—</b></span>
+        </div>
+        <div class="orders">
+            <span class="orders-label">我的委托</span>
+            <span id="aui-orders">暂无委托</span>
+        </div>
+
+        <div class="body">
+            <div class="stocks" id="aui-stocks"></div>
+            <div class="trade">
+                <div class="trade-row">
+                    <span class="label">选中</span>
+                    <span id="aui-selected">未选择</span>
+                </div>
+                <div class="trade-row">
+                    <span class="label">数量</span>
+                    <span class="stepper">
+                        <button id="aui-qty-minus" type="button">−</button>
+                        <span class="qty" id="aui-qty">100</span>
+                        <button id="aui-qty-plus" type="button">＋</button>
+                    </span>
+                </div>
+                <div class="trade-row">
+                    <span class="label">预估金额</span>
+                    <span id="aui-estimate">—</span>
+                </div>
+                <div class="actions">
+                    <button class="btn buy" id="aui-buy" type="button">买入</button>
+                    <button class="btn sell" id="aui-sell" type="button">卖出</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="msg" id="aui-msg"></div>
+        <div class="kline">
+            <div class="kline-label">K线图 · 近 40 交易日（红涨绿跌）</div>
+            <canvas id="aui-kline" width="600" height="150"></canvas>
+        </div>
+        <div class="foot">按 Esc 关闭</div>
+    </main>
+</body>
+</html>
