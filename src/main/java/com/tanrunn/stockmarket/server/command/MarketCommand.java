@@ -80,7 +80,10 @@ public final class MarketCommand {
 
     private static int openPanel(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        MarketService.get().sendSnapshot(player, true, null);
+        MarketService service = MarketService.get();
+        // 打开面板必须登记 viewer，否则服务端不会推送行情快照
+        service.addViewer(player.getUUID());
+        service.sendSnapshot(player, true, null);
         return 1;
     }
 

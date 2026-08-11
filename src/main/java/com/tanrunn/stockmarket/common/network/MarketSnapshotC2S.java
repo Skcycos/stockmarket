@@ -51,10 +51,25 @@ public record MarketSnapshotC2S(
             }
             double cash = buf.readDouble();
             double totalValue = buf.readDouble();
+            double holdingsValue = buf.readDouble();
+            double unrealizedPnl = buf.readDouble();
+            double realizedPnl = buf.readDouble();
+            double dailyPnl = buf.readDouble();
+            double totalPnl = buf.readDouble();
+            double reservedCash = buf.readDouble();
+            double availableHoldingsValue = buf.readDouble();
+            double reservedHoldingsValue = buf.readDouble();
+            int availableHoldingsQuantity = buf.readVarInt();
+            int reservedHoldingsQuantity = buf.readVarInt();
             int holdingCount = buf.readVarInt();
             Map<String, Integer> holdings = new LinkedHashMap<>();
             for (int i = 0; i < holdingCount; i++) {
                 holdings.put(buf.readUtf(64), buf.readVarInt());
+            }
+            int basisCount = buf.readVarInt();
+            Map<String, Double> costBasis = new LinkedHashMap<>();
+            for (int i = 0; i < basisCount; i++) {
+                costBasis.put(buf.readUtf(64), buf.readDouble());
             }
             int orderCount = buf.readVarInt();
             List<com.tanrunn.stockmarket.common.OrderInfo> orders = new ArrayList<>(orderCount);
@@ -63,7 +78,18 @@ public record MarketSnapshotC2S(
                         buf.readVarLong(), buf.readUtf(64), buf.readBoolean(),
                         buf.readDouble(), buf.readVarInt()));
             }
-            return new MarketSnapshotC2S(open, message, stocks, new AccountInfo(cash, totalValue, holdings, orders));
+            int tradeCount = buf.readVarInt();
+            List<com.tanrunn.stockmarket.common.TradeInfo> trades = new ArrayList<>(tradeCount);
+            for (int i = 0; i < tradeCount; i++) {
+                trades.add(new com.tanrunn.stockmarket.common.TradeInfo(
+                        buf.readVarLong(), buf.readUtf(64), buf.readBoolean(),
+                        buf.readDouble(), buf.readVarInt(), buf.readDouble()));
+            }
+            return new MarketSnapshotC2S(open, message, stocks,
+                new AccountInfo(cash, totalValue, holdingsValue, unrealizedPnl, realizedPnl,
+                            dailyPnl, totalPnl, reservedCash, availableHoldingsValue,
+                            reservedHoldingsValue, availableHoldingsQuantity, reservedHoldingsQuantity,
+                            holdings, costBasis, orders, trades));
         }
 
         @Override
@@ -92,11 +118,27 @@ public record MarketSnapshotC2S(
             }
             buf.writeDouble(value.account().cash());
             buf.writeDouble(value.account().totalValue());
+            buf.writeDouble(value.account().holdingsValue());
+            buf.writeDouble(value.account().unrealizedPnl());
+            buf.writeDouble(value.account().realizedPnl());
+            buf.writeDouble(value.account().dailyPnl());
+            buf.writeDouble(value.account().totalPnl());
+            buf.writeDouble(value.account().reservedCash());
+            buf.writeDouble(value.account().availableHoldingsValue());
+            buf.writeDouble(value.account().reservedHoldingsValue());
+            buf.writeVarInt(value.account().availableHoldingsQuantity());
+            buf.writeVarInt(value.account().reservedHoldingsQuantity());
             Map<String, Integer> holdings = value.account().holdings();
             buf.writeVarInt(holdings.size());
             holdings.forEach((id, qty) -> {
                 buf.writeUtf(id, 64);
                 buf.writeVarInt(qty);
+            });
+            Map<String, Double> costBasis = value.account().costBasis();
+            buf.writeVarInt(costBasis.size());
+            costBasis.forEach((id, basis) -> {
+                buf.writeUtf(id, 64);
+                buf.writeDouble(basis);
             });
             List<com.tanrunn.stockmarket.common.OrderInfo> orders = value.account().orders();
             buf.writeVarInt(orders.size());
@@ -106,6 +148,16 @@ public record MarketSnapshotC2S(
                 buf.writeBoolean(order.buy());
                 buf.writeDouble(order.price());
                 buf.writeVarInt(order.quantity());
+            }
+            List<com.tanrunn.stockmarket.common.TradeInfo> trades = value.account().trades();
+            buf.writeVarInt(trades.size());
+            for (com.tanrunn.stockmarket.common.TradeInfo trade : trades) {
+                buf.writeVarLong(trade.dayIndex());
+                buf.writeUtf(trade.stockId(), 64);
+                buf.writeBoolean(trade.buy());
+                buf.writeDouble(trade.price());
+                buf.writeVarInt(trade.quantity());
+                buf.writeDouble(trade.fee());
             }
         }
     };

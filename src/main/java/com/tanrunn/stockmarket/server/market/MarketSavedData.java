@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Persists per-stock price state and the daily candle history across server
@@ -24,6 +25,12 @@ public class MarketSavedData extends SavedData {
 
     private final Map<String, StockState> states = new HashMap<>();
     private final OrderBook orderBook = new OrderBook();
+
+    public MarketSavedData() {
+        // 委托簿任何变化（新增/成交/撤单/清理）都立即标记 SavedData dirty，
+        // 保证在正常世界存档周期内落盘，而不只依赖服务器停止时的 save()。
+        orderBook.setDirtyHandler(this::setDirty);
+    }
 
     public static MarketSavedData load(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(
@@ -55,12 +62,20 @@ public class MarketSavedData extends SavedData {
         ListTag orders = tag.getList("orders", Tag.TAG_COMPOUND);
         for (int i = 0; i < orders.size(); i++) {
             CompoundTag order = orders.getCompound(i);
-            data.orderBook.place(
-                    java.util.UUID.fromString(order.getString("player")),
-                    order.getString("stock"),
-                    order.getBoolean("buy"),
-                    order.getDouble("price"),
-                    order.getInt("qty"));
+            UUID player = UUID.fromString(order.getString("player"));
+            String stock = order.getString("stock");
+            boolean buy = order.getBoolean("buy");
+            double price = order.getDouble("price");
+            int qty = order.getInt("qty");
+            double reservedCostBasis = order.getDouble("reservedCostBasis");
+            if (order.contains("id", Tag.TAG_ANY_NUMERIC)) {
+                // 用原始 ID 恢复订单，保证重启后委托 ID 不变；
+                // restore() 不会触发 dirty（恢复是加载存档，不是新增委托）。
+                data.orderBook.restore(order.getLong("id"), player, stock, buy, price, qty, reservedCostBasis);
+            } else {
+                // 旧存档（无 id 字段）：按原逻辑分配 ID，同样走 restore 避免误标 dirty
+                data.orderBook.restore(data.orderBook.nextId(), player, stock, buy, price, qty, reservedCostBasis);
+            }
         }
         return data;
     }
@@ -102,6 +117,9 @@ public class MarketSavedData extends SavedData {
             o.putBoolean("buy", order.buy());
             o.putDouble("price", order.price());
             o.putInt("qty", order.quantity());
+            if (order.reservedCostBasis() > 0) {
+                o.putDouble("reservedCostBasis", order.reservedCostBasis());
+            }
             orders.add(o);
         }
         tag.put("orders", orders);

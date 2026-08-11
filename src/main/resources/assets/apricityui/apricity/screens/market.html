@@ -7,15 +7,31 @@
     <meta name="aui-mouse-events" content="intercept">
     <style>
         :root {
-            --bg: rgba(18, 20, 24, 0.94);
-            --panel: #23262c;
-            --panel-soft: #2b2f37;
-            --edge: #3a3f49;
-            --ink: #e8eaf0;
-            --muted: #9aa3b2;
-            --up: #e05555;
-            --down: #58c270;
-            --gold: #d9a93f;
+            --ink: #2c302b;
+            --ink-soft: #44483f;
+            --muted: #6d7168;
+            --muted-deep: #8b8c82;
+            --surface: #f4f0e7;
+            --surface-soft: #e8e3d7;
+            --surface-deep: #ded8c9;
+            --line: #aaa491;
+            --line-soft: #d0c9b9;
+            --gold: #966b1f;
+            --gold-bright: #a47723;
+            --seal: #a34d45;
+            --rise: #b3483f;
+            --fall: #36835d;
+            --orders: #ece7dc;
+            --hover: #ddd7c9;
+            --selected: #e6dcc2;
+            --buy: #b35b52;
+            --sell: #4d8c69;
+            --limit-buy: #ead6d0;
+            --limit-sell: #d7e7db;
+            --cancel-line: #b07a70;
+            --cancel-ink: #914940;
+            --cancel-hover: #ead1cb;
+            --panel-shadow: rgba(41, 38, 29, .26);
         }
 
         * { box-sizing: border-box; }
@@ -28,104 +44,469 @@
             align-items: center;
             justify-content: center;
             color: var(--ink);
-            background: var(--bg);
+            background: transparent;
             font-family: "Kaiti SC", "KaiTi", "STKaiti", "SimSun", "Songti SC", "Noto Serif CJK SC", serif;
         }
 
         .market {
             width: 92%;
-            max-width: 720px;
-            max-height: 86vh;
+            max-width: 820px;
+            height: 88vh;
+            min-height: 540px;
+            max-height: 900px;
             display: flex;
             flex-direction: column;
-            border: 1px solid var(--edge);
-            border-radius: 10px;
-            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            background: var(--surface);
+            box-shadow: 0 14px 34px var(--panel-shadow), 0 3px 8px rgba(41, 38, 29, .16);
             overflow: hidden;
-            animation: panel-in .3s ease-out both;
+            animation: panel-in .25s ease-out both;
         }
 
         .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--edge);
-            background: var(--panel-soft);
+            gap: 18px;
+            padding: 14px 18px 13px;
+            border-bottom: 1px solid var(--line);
+            background: var(--surface-deep);
         }
 
-        .title { font-size: 18px; letter-spacing: 2px; color: var(--gold); }
-        .sub { color: var(--muted); font-size: 11px; }
+        .brand { min-width: 0; }
+        .brand-kicker {
+            margin-bottom: 3px;
+            color: var(--gold);
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        .title {
+            color: var(--ink);
+            font-size: 21px;
+            letter-spacing: 3px;
+            line-height: 1.25;
+        }
+
+        .sub {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: .5px;
+        }
+
+        .header-tools {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: none;
+        }
+
+        .market-status {
+            color: var(--fall);
+            font-size: 10px;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
 
         .account {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            padding: 8px 14px;
-            border-bottom: 1px solid var(--edge);
-            background: rgba(43, 47, 55, .5);
-            font-size: 12px;
+            align-items: stretch;
+            gap: 0;
+            padding: 0;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--surface);
         }
 
-        .account span { color: var(--muted); }
-        .account b { color: var(--ink); font-weight: 600; }
+        .account-block {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+            padding: 9px 11px 10px;
+            border-right: 1px solid var(--line-soft);
+        }
+
+        .account-block:last-child { flex: 1; border-right: 0; }
+        .account-label { color: var(--muted); font-size: 9px; letter-spacing: 1px; }
+        .account b { color: var(--ink-soft); font-size: 13px; font-weight: 600; }
+        .account b.pnl-up, .portfolio-stat b.pnl-up { color: var(--rise); }
+        .account b.pnl-down, .portfolio-stat b.pnl-down { color: var(--fall); }
+
+        .account-detail {
+            min-height: 25px;
+            padding: 5px 15px 6px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--muted);
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .view-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 6px 10px 0;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+        }
+
+        .view-tab {
+            min-width: 62px;
+            padding: 6px 12px 7px;
+            border: 1px solid transparent;
+            border-bottom: 0;
+            border-radius: 3px 3px 0 0;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 11px;
+        }
+
+        .view-tab:hover { color: var(--gold); background: var(--hover); }
+        .view-tab.active {
+            border-color: var(--line-soft);
+            background: var(--surface);
+            color: var(--gold);
+        }
+
+        .view-pane { display: none; }
+        .view-pane.active { display: flex; }
 
         .orders {
             display: flex;
-            align-items: center;
-            padding: 6px 14px;
-            border-bottom: 1px solid var(--edge);
-            background: rgba(43, 47, 55, .3);
+            align-items: stretch;
+            gap: 14px;
+            padding: 8px 15px;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--orders);
             font-size: 11px;
-            gap: 10px;
         }
 
-        .orders-label { color: var(--muted); flex: none; }
-        .orders #aui-orders { color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .orders-label {
+            flex: none;
+            padding-top: 3px;
+            color: var(--gold);
+            letter-spacing: 1px;
+        }
 
-        .body { display: flex; flex: 1; min-height: 0; }
+        .orders-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 96px;
+            overflow-y: auto;
+            color: var(--ink-soft);
+        }
+
+        .order-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 23px;
+            padding: 2px 8px;
+            border-left: 2px solid var(--gold);
+            background: var(--surface-soft);
+            font-size: 11px;
+        }
+
+        .order-row .cancel {
+            flex: none;
+            width: 44px;
+            padding: 2px 0;
+            border: 1px solid var(--cancel-line);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--cancel-ink);
+            font: inherit;
+            font-size: 10px;
+        }
+
+        .order-row .cancel:hover { background: var(--cancel-hover); }
+
+        .body {
+            display: flex;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .body.view-pane { display: none; }
+        .body.view-pane.active { display: flex; }
+
+        .portfolio-view,
+        .orders-view {
+            flex: 1 1 auto;
+            min-height: 0;
+            flex-direction: column;
+            padding: 12px 15px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .page-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding-bottom: 9px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--gold);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .page-heading .hint { color: var(--muted-deep); font-size: 10px; letter-spacing: 0; }
+
+        .portfolio-summary {
+            display: flex;
+            gap: 7px;
+            padding: 10px 0;
+        }
+
+        .portfolio-stat {
+            flex: 1;
+            min-width: 0;
+            padding: 7px 9px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: var(--surface-soft);
+        }
+
+        .portfolio-stat span { display: block; color: var(--muted); font-size: 10px; }
+        .portfolio-stat b { display: block; margin-top: 4px; color: var(--ink); font-size: 14px; }
+
+        .portfolio-list-head,
+        .portfolio-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .portfolio-list-head {
+            padding: 6px 9px;
+            color: var(--muted);
+            font-size: 10px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .portfolio-list,
+        .orders-page-list {
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .portfolio-row {
+            min-height: 38px;
+            padding: 6px 9px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--ink-soft);
+            font-size: 11px;
+        }
+
+        .portfolio-row:hover { background: var(--hover); }
+        .portfolio-cell-name { flex: 1.25; min-width: 82px; color: var(--ink); }
+        .portfolio-cell { flex: .78; min-width: 52px; text-align: right; }
+        .portfolio-cell.pnl { color: var(--rise); }
+        .portfolio-cell.pnl.down { color: var(--fall); }
+        .portfolio-action { display: flex; flex: none; width: 94px; gap: 2px; }
+
+        .portfolio-action button,
+        .order-page-action {
+            flex: 1;
+            padding: 4px 0;
+            border: 1px solid var(--line);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--gold);
+            font: inherit;
+            font-size: 10px;
+        }
+
+        .portfolio-action button { font-size: 9px; }
+
+        .portfolio-action button:hover,
+        .order-page-action:hover { border-color: var(--gold); background: var(--selected); }
+
+        .empty-state {
+            padding: 28px 8px;
+            color: var(--muted);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .orders-page-list { flex: 0 1 38%; padding-top: 8px; }
+        .orders-page-list .order-row { min-height: 31px; margin-bottom: 5px; padding: 5px 9px; }
+
+        .order-filters {
+            display: flex;
+            gap: 5px;
+            padding: 9px 0 4px;
+        }
+
+        .order-filter {
+            padding: 4px 9px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 10px;
+        }
+
+        .order-filter.active,
+        .order-filter:hover { border-color: var(--gold); color: var(--gold); background: var(--selected); }
+
+        .order-section-title {
+            padding: 8px 0 4px;
+            color: var(--gold);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .trade-history-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        .trade-history-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 30px;
+            padding: 5px 9px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--ink-soft);
+            font-size: 10px;
+        }
+
+        .trade-history-row .trade-buy { color: var(--rise); }
+        .trade-history-row .trade-sell { color: var(--fall); }
+        .trade-history-row .trade-note { color: var(--muted); }
+
+        .quote-tail.view-pane.active { display: block; }
+
+        .quotes-pane {
+            flex: 1.18;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--line);
+        }
+
+        .pane-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 10px 13px 7px;
+            color: var(--gold);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .pane-heading .hint {
+            color: var(--muted-deep);
+            font-size: 10px;
+            letter-spacing: 0;
+        }
+
+        .stock-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 7px;
+            padding: 0 8px 6px;
+            color: var(--muted-deep);
+            font-size: 9px;
+        }
+
+        .stock-control-group { display: flex; align-items: center; gap: 3px; min-width: 0; }
+        .stock-control-label { flex: none; }
+        .stock-control {
+            padding: 3px 5px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 9px;
+        }
+
+        .stock-control.active,
+        .stock-control:hover { border-color: var(--gold); color: var(--gold); background: var(--selected); }
 
         .stocks {
-            flex: 1.4;
+            flex: 1;
             min-width: 0;
             overflow-y: auto;
-            border-right: 1px solid var(--edge);
-            padding: 6px;
+            padding: 0 8px 8px;
         }
 
         .stock-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            min-height: 39px;
             padding: 7px 10px;
-            margin-bottom: 4px;
-            border: 1px solid var(--edge);
-            border-radius: 6px;
-            background: var(--panel-soft);
+            margin-bottom: 3px;
+            border: 1px solid transparent;
+            border-bottom-color: var(--line-soft);
+            border-radius: 2px;
+            background: transparent;
             font-size: 13px;
         }
 
-        .stock-row:hover { background: #32363f; }
-        .stock-row.selected { border-color: var(--gold); background: #3a3423; }
-
-        .stock-name { color: var(--ink); }
+        .stock-row:hover { background: var(--hover); }
+        .stock-row.selected { border-color: var(--gold); background: var(--selected); }
+        .stock-name { color: var(--ink); letter-spacing: .5px; }
         .stock-price { font-size: 12px; }
-        .stock-up { color: var(--up); }
-        .stock-down { color: var(--down); }
+        .stock-up { color: var(--rise); }
+        .stock-down { color: var(--fall); }
 
         .trade {
-            flex: 1;
+            flex: .82;
             min-width: 0;
-            padding: 10px 12px;
+            min-height: 0;
+            padding: 12px 15px 13px;
             display: flex;
             flex-direction: column;
+            background: var(--surface-deep);
+            overflow-y: auto;
+        }
+
+        .trade-head {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .trade-kicker {
+            color: var(--gold);
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        #aui-selected {
+            color: var(--ink);
+            font-size: 16px;
+            letter-spacing: .5px;
+        }
+
+        .trade-fields {
+            padding: 11px 0 2px;
         }
 
         .trade-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            gap: 10px;
+            min-height: 31px;
+            margin-bottom: 7px;
             font-size: 13px;
         }
 
@@ -133,60 +514,190 @@
 
         .stepper { display: flex; align-items: center; }
         .stepper button {
-            width: 26px;
-            height: 24px;
-            border: 1px solid var(--edge);
-            border-radius: 5px;
-            background: var(--panel-soft);
-            color: var(--ink);
-            font-size: 15px;
-        }
-        .stepper button:hover { background: #3a3f49; }
-        .stepper .qty {
-            min-width: 64px;
-            text-align: center;
-            color: var(--gold);
+            width: 27px;
+            height: 25px;
+            border: 1px solid var(--line);
+            border-radius: 3px;
+            background: var(--surface-soft);
+            color: var(--ink-soft);
+            font: inherit;
             font-size: 15px;
         }
 
-        .actions { margin-top: auto; display: flex; gap: 8px; }
+        .stepper button:hover { border-color: var(--gold); color: var(--gold-bright); }
+        .stepper .qty {
+            min-width: 67px;
+            text-align: center;
+            color: var(--gold-bright);
+            font-size: 15px;
+        }
+
+        .quick-qty {
+            display: flex;
+            justify-content: flex-end;
+            gap: 4px;
+            margin: -2px 0 7px;
+        }
+
+        .quick-qty button {
+            padding: 3px 6px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 10px;
+        }
+
+        .quick-qty button:hover { border-color: var(--gold); color: var(--gold); background: var(--selected); }
+
+        .estimate {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: 2px;
+            padding: 9px 0 10px;
+            border-top: 1px solid var(--line-soft);
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .estimate .label { color: var(--muted); font-size: 12px; }
+        #aui-estimate { color: var(--ink); font-size: 16px; }
+
+        .trade-hint {
+            padding-top: 7px;
+            color: var(--muted-deep);
+            font-size: 9px;
+            text-align: right;
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: auto;
+            padding-top: 12px;
+        }
+
+        .action-caption {
+            color: var(--muted-deep);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .actions { display: flex; gap: 7px; }
         .btn {
             flex: 1;
             padding: 8px 0;
-            border: 1px solid var(--edge);
-            border-radius: 6px;
+            border: 1px solid var(--line);
+            border-radius: 3px;
             color: var(--ink);
-            font-size: 14px;
-            letter-spacing: 2px;
+            font: inherit;
+            font-size: 13px;
+            letter-spacing: 1px;
         }
-        .btn:hover { filter: brightness(1.15); }
-        .btn.buy { background: #1e5c33; }
-        .btn.sell { background: #6e2a2a; }
+
+        .btn:hover { border-color: var(--gold); filter: brightness(1.12); }
+        .btn.buy { border-color: var(--seal); background: var(--buy); }
+        .btn.sell { border-color: var(--fall); background: var(--sell); }
+        .btn.limit-buy { background: var(--limit-buy); color: var(--ink-soft); }
+        .btn.limit-sell { background: var(--limit-sell); color: var(--ink-soft); }
         .btn.refresh {
             flex: none;
-            width: 60px;
-            background: var(--panel-soft);
-            font-size: 12px;
-            padding: 8px 0;
+            width: 65px;
+            padding: 7px 0;
+            border-color: var(--line);
+            background: transparent;
+            color: var(--ink-soft);
+            font-size: 11px;
         }
 
         .msg {
-            padding: 6px 12px;
-            border-top: 1px solid var(--edge);
-            color: var(--gold);
-            font-size: 12px;
-            min-height: 22px;
+            padding: 6px 14px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--gold-bright);
+            font-size: 11px;
+            min-height: 23px;
         }
 
         .kline {
-            padding: 8px 12px;
-            border-top: 1px solid var(--edge);
+            padding: 10px 14px 8px;
+            background: var(--surface);
+        }
+
+        .kline-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 7px;
         }
 
         .kline-label {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            color: var(--gold);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .kline-note { color: var(--muted-deep); font-size: 10px; }
+
+        .kline-tools {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .kline-summary {
+            max-width: 310px;
+            overflow: hidden;
             color: var(--muted);
-            font-size: 11px;
-            margin-bottom: 6px;
+            font-size: 9px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .kline-hover {
+            display: flex;
+            align-items: baseline;
+            gap: 9px;
+            min-height: 13px;
+            margin: 0 0 4px;
+            overflow: hidden;
+            color: var(--muted-deep);
+            font-size: 9px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .kline-hover-field { white-space: nowrap; }
+        .kline-hover-value { font-weight: 600; }
+        .kline-hover-open .kline-hover-value { color: #a47723; }
+        .kline-hover-high .kline-hover-value { color: #b3483f; }
+        .kline-hover-low .kline-hover-value { color: #36835d; }
+        .kline-hover-close .kline-hover-value { color: #5b7890; }
+        .kline-hover-volume .kline-hover-value { color: #7e6e5b; }
+
+        .kline-toggle {
+            padding: 3px 5px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 9px;
+        }
+
+        .kline-toggle.active,
+        .kline-toggle:hover {
+            border-color: var(--gold);
+            background: var(--selected);
+            color: var(--gold);
         }
 
         .kline canvas {
@@ -196,15 +707,16 @@
         }
 
         .foot {
-            padding: 6px 12px;
-            border-top: 1px solid var(--edge);
+            padding: 6px 14px;
+            border-top: 1px solid var(--line-soft);
+            background: var(--surface-deep);
             color: var(--muted);
-            font-size: 11px;
+            font-size: 10px;
             text-align: right;
         }
 
         @keyframes panel-in {
-            from { opacity: 0; transform: translateY(8px) scale(.99); }
+            from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: none; }
         }
     </style>
@@ -212,54 +724,200 @@
 <body>
     <main class="market">
         <header class="header">
-            <div>
-                <div class="title">股市风云 · 食韵筑家Ⅲ</div>
-                <div class="sub">服务器股市 · 行情每 5 秒更新</div>
+            <div class="brand">
+                <div class="brand-kicker">食韵筑家Ⅲ · 服务器交易所</div>
+                <div class="title">股市风云</div>
+                <div class="sub">行情每 5 秒更新 · 以当前价格为准</div>
             </div>
-            <button class="btn refresh" id="aui-refresh" type="button">刷新</button>
+            <div class="header-tools">
+                <span class="market-status">● 交易中</span>
+                <button class="btn refresh" id="aui-refresh" type="button">刷新</button>
+            </div>
         </header>
 
         <div class="account">
-            <span>现金 <b id="aui-cash">—</b></span>
-            <span>总资产 <b id="aui-total">—</b></span>
-            <span>持仓 <b id="aui-holdings">—</b></span>
-        </div>
-        <div class="orders">
-            <span class="orders-label">我的委托</span>
-            <span id="aui-orders">暂无委托</span>
-        </div>
-
-        <div class="body">
-            <div class="stocks" id="aui-stocks"></div>
-            <div class="trade">
-                <div class="trade-row">
-                    <span class="label">选中</span>
-                    <span id="aui-selected">未选择</span>
-                </div>
-                <div class="trade-row">
-                    <span class="label">数量</span>
-                    <span class="stepper">
-                        <button id="aui-qty-minus" type="button">−</button>
-                        <span class="qty" id="aui-qty">100</span>
-                        <button id="aui-qty-plus" type="button">＋</button>
-                    </span>
-                </div>
-                <div class="trade-row">
-                    <span class="label">预估金额</span>
-                    <span id="aui-estimate">—</span>
-                </div>
-                <div class="actions">
-                    <button class="btn buy" id="aui-buy" type="button">买入</button>
-                    <button class="btn sell" id="aui-sell" type="button">卖出</button>
-                </div>
+            <div class="account-block">
+                <span class="account-label">可用现金</span>
+                <b id="aui-cash">—</b>
+            </div>
+            <div class="account-block">
+                <span class="account-label">持仓市值</span>
+                <b id="aui-position-value">—</b>
+            </div>
+            <div class="account-block">
+                <span class="account-label">总资产</span>
+                <b id="aui-total">—</b>
+            </div>
+            <div class="account-block">
+                <span class="account-label">当日盈亏</span>
+                <b id="aui-daily-pnl">—</b>
+            </div>
+            <div class="account-block">
+                <span class="account-label">总盈亏</span>
+                <b id="aui-total-pnl">—</b>
+            </div>
+            <div class="account-block">
+                <span class="account-label">当前持仓</span>
+                <b id="aui-holdings">—</b>
             </div>
         </div>
+        <div class="account-detail" id="aui-account-detail">可用现金 — · 冻结资金 — · 可用持仓 — · 冻结持仓 —</div>
 
-        <div class="msg" id="aui-msg"></div>
-        <div class="kline">
-            <div class="kline-label">K线图 · 近 40 交易日（红涨绿跌）</div>
-            <canvas id="aui-kline" width="600" height="150"></canvas>
+        <div class="orders">
+            <span class="orders-label">我的委托</span>
+            <div class="orders-list" id="aui-orders"></div>
         </div>
+
+        <div class="view-tabs">
+            <button class="view-tab active" id="aui-tab-quotes" type="button">行情</button>
+            <button class="view-tab" id="aui-tab-portfolio" type="button">持仓</button>
+            <button class="view-tab" id="aui-tab-orders" type="button">委托</button>
+        </div>
+
+        <div class="body view-pane active" id="aui-quotes-view">
+            <section class="quotes-pane">
+                <div class="pane-heading">
+                    <span>行情簿</span>
+                    <span class="hint">价格 / 涨跌幅</span>
+                </div>
+                <div class="stock-controls">
+                    <div class="stock-control-group">
+                        <span class="stock-control-label">筛选</span>
+                        <button class="stock-control active" id="aui-stock-filter-all" type="button">全部</button>
+                        <button class="stock-control" id="aui-stock-filter-held" type="button">持仓</button>
+                        <button class="stock-control" id="aui-stock-filter-up" type="button">上涨</button>
+                        <button class="stock-control" id="aui-stock-filter-down" type="button">下跌</button>
+                    </div>
+                    <div class="stock-control-group">
+                        <span class="stock-control-label">排序</span>
+                        <button class="stock-control active" id="aui-stock-sort-default" type="button">默认</button>
+                        <button class="stock-control" id="aui-stock-sort-change" type="button">涨跌幅</button>
+                        <button class="stock-control" id="aui-stock-sort-price" type="button">价格</button>
+                    </div>
+                </div>
+                <div class="stocks" id="aui-stocks"></div>
+            </section>
+
+            <section class="trade">
+                <div class="trade-head">
+                    <span class="trade-kicker">交易票据</span>
+                    <span id="aui-selected">未选择</span>
+                </div>
+
+                <div class="trade-fields">
+                    <div class="trade-row">
+                        <span class="label">数量</span>
+                        <span class="stepper">
+                            <button id="aui-qty-minus" type="button">−</button>
+                            <span class="qty" id="aui-qty">100</span>
+                            <button id="aui-qty-plus" type="button">＋</button>
+                        </span>
+                    </div>
+                    <div class="quick-qty">
+                        <button id="aui-qty-plus-one" type="button">+1</button>
+                        <button id="aui-qty-plus-ten" type="button">+10</button>
+                        <button id="aui-qty-plus-hundred" type="button">+100</button>
+                        <button id="aui-sell-all" type="button">持仓全部</button>
+                    </div>
+                    <div class="trade-row">
+                        <span class="label">限价</span>
+                        <span class="stepper">
+                            <button id="aui-price-minus" type="button">−</button>
+                            <span class="qty" id="aui-price">0.00</span>
+                            <button id="aui-price-plus" type="button">＋</button>
+                        </span>
+                    </div>
+                    <div class="estimate">
+                        <span class="label">预估金额</span>
+                        <span id="aui-estimate">—</span>
+                    </div>
+                    <div class="trade-hint" id="aui-trade-hint">交易按钮需再次点击确认</div>
+                </div>
+
+                <div class="action-group">
+                    <span class="action-caption">市价交易</span>
+                    <div class="actions">
+                        <button class="btn buy" id="aui-buy" type="button">买入</button>
+                        <button class="btn sell" id="aui-sell" type="button">卖出</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <span class="action-caption">限价委托</span>
+                    <div class="actions">
+                        <button class="btn limit-buy" id="aui-limit-buy" type="button">限价买入</button>
+                        <button class="btn limit-sell" id="aui-limit-sell" type="button">限价卖出</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="portfolio-view view-pane" id="aui-portfolio-view">
+            <div class="page-heading">
+                <span>持仓总览</span>
+                <span class="hint" id="aui-portfolio-hint">点击股票可直接进入交易</span>
+            </div>
+            <div class="portfolio-summary">
+                <div class="portfolio-stat"><span>持仓市值</span><b id="aui-portfolio-value">—</b></div>
+                <div class="portfolio-stat"><span>浮动盈亏</span><b id="aui-unrealized-pnl">—</b></div>
+                <div class="portfolio-stat"><span>已实现盈亏</span><b id="aui-realized-pnl">—</b></div>
+                <div class="portfolio-stat"><span>当日盈亏</span><b id="aui-portfolio-daily-pnl">—</b></div>
+            </div>
+            <div class="portfolio-list-head">
+                <span class="portfolio-cell-name">股票</span>
+                <span class="portfolio-cell">数量</span>
+                <span class="portfolio-cell">成本价</span>
+                <span class="portfolio-cell">现价</span>
+                <span class="portfolio-cell">当日盈亏</span>
+                <span class="portfolio-cell">持仓盈亏</span>
+                <span class="portfolio-cell">盈亏%</span>
+                <span class="portfolio-action">操作</span>
+            </div>
+            <div class="portfolio-list" id="aui-portfolio-list"></div>
+        </section>
+
+        <section class="orders-view view-pane" id="aui-orders-view">
+            <div class="page-heading">
+                <span>委托管理</span>
+                <span class="hint">未成交委托可随时撤回</span>
+            </div>
+            <div class="order-filters">
+                <button class="order-filter active" id="aui-order-filter-all" type="button">全部</button>
+                <button class="order-filter" id="aui-order-filter-buy" type="button">买入</button>
+                <button class="order-filter" id="aui-order-filter-sell" type="button">卖出</button>
+            </div>
+            <div class="order-section-title">当前委托</div>
+            <div class="orders-page-list" id="aui-orders-page"></div>
+            <div class="order-section-title">最近成交</div>
+            <div class="trade-history-list" id="aui-trade-history"></div>
+        </section>
+
+        <section class="quote-tail view-pane active" id="aui-quotes-tail">
+            <div class="msg" id="aui-msg"></div>
+            <div class="kline">
+                <div class="kline-heading">
+                    <div class="kline-label">
+                        <span>价格走势</span>
+                        <span class="kline-note">近 40 交易日 · 红涨绿跌</span>
+                    </div>
+                    <div class="kline-tools">
+                        <span class="kline-summary" id="aui-kline-summary">选择股票查看走势</span>
+                        <button class="kline-toggle active" id="aui-kline-ma5" type="button">MA5</button>
+                        <button class="kline-toggle active" id="aui-kline-ma10" type="button">MA10</button>
+                        <button class="kline-toggle active" id="aui-kline-volume" type="button">量</button>
+                    </div>
+                </div>
+                <div class="kline-hover" id="aui-kline-hover">
+                    <span class="kline-hover-day" id="aui-kline-hover-day">移动鼠标查看该日</span>
+                    <span class="kline-hover-field kline-hover-open">开 <b class="kline-hover-value" id="aui-kline-hover-open">—</b></span>
+                    <span class="kline-hover-field kline-hover-high">高 <b class="kline-hover-value" id="aui-kline-hover-high">—</b></span>
+                    <span class="kline-hover-field kline-hover-low">低 <b class="kline-hover-value" id="aui-kline-hover-low">—</b></span>
+                    <span class="kline-hover-field kline-hover-close">收 <b class="kline-hover-value" id="aui-kline-hover-close">—</b></span>
+                    <span class="kline-hover-field kline-hover-volume">量 <b class="kline-hover-value" id="aui-kline-hover-volume">—</b></span>
+                </div>
+                <!-- 2x backing resolution keeps Canvas text and strokes sharp when the panel is wide. -->
+                <canvas id="aui-kline" width="1200" height="300"></canvas>
+            </div>
+        </section>
         <div class="foot">按 Esc 关闭</div>
     </main>
 </body>

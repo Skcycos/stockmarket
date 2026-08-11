@@ -11,17 +11,41 @@ import java.util.UUID;
  * drops to/below its limit, a sell order when the price rises to/above its limit.
  * Fills execute at the order's limit price. Side effects (account transfers,
  * notifications) are delegated to a MatchSink so the matching logic stays pure.
+ *
+ * <p>离线结算策略：订单只有在 sink 确认成交（返回 true）后才会从簿上移除。
+ * 玩家离线时 sink 返回 false，订单继续保留，其预留资金/持仓始终留在玩家账上；
+ * 玩家重新上线后，后续撮合轮次会再次尝试成交（或由玩家主动撤单退款）。
+ * 因此不会出现"订单已删除、但资金或持仓无人处理"的情况。
  */
 public final class OrderBook {
-    public record Order(long id, UUID player, String stockId, boolean buy, double price, int quantity) {
+    public record Order(long id, UUID player, String stockId, boolean buy, double price, int quantity,
+                        double reservedCostBasis) {
+        public Order(long id, UUID player, String stockId, boolean buy, double price, int quantity) {
+            this(id, player, stockId, buy, price, quantity, 0);
+        }
     }
 
     public interface MatchSink {
-        void onFill(Order order, double fillPrice);
+        /**
+         * Called when an order hits the market price. Return {@code true} to
+         * confirm the fill and remove the order; return {@code false} to keep the
+         * order in the book (e.g. the player is offline and settlement is deferred).
+         */
+        boolean onFill(Order order, double fillPrice);
     }
 
     private final Map<Long, Order> orders = new LinkedHashMap<>();
     private long nextId = 1;
+    private Runnable dirtyHandler = () -> {};
+
+    /**
+     * Registers a callback fired whenever the book changes (place / fill / cancel /
+     * clear). MarketSavedData wires this to {@code setDirty()} so委托簿的任何变化
+     * 都会及时落盘，而不是只依赖服务器停止时的 save()。
+     */
+    public void setDirtyHandler(Runnable dirtyHandler) {
+        this.dirtyHandler = dirtyHandler;
+    }
 
     public long nextId() {
         return nextId;
@@ -31,14 +55,47 @@ public final class OrderBook {
         this.nextId = Math.max(this.nextId, id);
     }
 
+    /** Places a new order, assigning the next free id. */
     public long place(UUID player, String stockId, boolean buy, double price, int quantity) {
-        Order order = new Order(nextId++, player, stockId, buy, price, quantity);
-        orders.put(order.id(), order);
-        return order.id();
+        return place(player, stockId, buy, price, quantity, 0);
+    }
+
+    /** Places an order with the cost basis reserved for a sell order. */
+    public long place(UUID player, String stockId, boolean buy, double price, int quantity,
+                      double reservedCostBasis) {
+        long id = nextId++;
+        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis));
+        dirtyHandler.run();
+        return id;
+    }
+
+    /**
+     * Restores a persisted order with its original id (used by
+     * MarketSavedData.read so outstanding order ids survive a restart).
+     * 恢复是"加载存档"而非"新增委托"，因此不触发 dirty 标记；
+     * 自增计数器仍会推进到超过恢复出的最大 id。
+     */
+    public long restore(long id, UUID player, String stockId, boolean buy, double price, int quantity) {
+        return restore(id, player, stockId, buy, price, quantity, 0);
+    }
+
+    public long restore(long id, UUID player, String stockId, boolean buy, double price, int quantity,
+                        double reservedCostBasis) {
+        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis));
+        nextId = Math.max(nextId, id + 1);
+        return id;
     }
 
     public Order cancel(long id) {
-        return orders.remove(id);
+        Order removed = orders.remove(id);
+        if (removed != null) {
+            dirtyHandler.run();
+        }
+        return removed;
+    }
+
+    public Order get(long id) {
+        return orders.get(id);
     }
 
     public List<Order> ordersOf(UUID player) {
@@ -66,13 +123,20 @@ public final class OrderBook {
             if (!order.stockId().equals(stockId)) continue;
             boolean hits = order.buy() ? marketPrice <= order.price() : marketPrice >= order.price();
             if (!hits) continue;
-            sink.onFill(order, order.price());
-            filled.add(order.id());
+            if (sink.onFill(order, order.price())) {
+                filled.add(order.id());
+            }
         }
-        filled.forEach(orders::remove);
+        if (!filled.isEmpty()) {
+            filled.forEach(orders::remove);
+            dirtyHandler.run();
+        }
     }
 
     public void clear() {
-        orders.clear();
+        if (!orders.isEmpty()) {
+            orders.clear();
+            dirtyHandler.run();
+        }
     }
 }
