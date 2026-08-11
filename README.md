@@ -1,39 +1,213 @@
-# 股市风云 (Stock Market)
+# 股市风云（Stock Market）
 
-服务器内炒股模组（NeoForge / MC 1.21.1）。
+面向 Minecraft 服务器的服务端权威证券市场 Mod，适用于 NeoForge 1.21.1。
+玩家可以查看行情、买卖股票、提交限价委托，并通过 K 线和技术指标观察价格走势。
 
-- 行情模拟与交易逻辑：**服务端权威**
-- 客户端 UI：**ApricityUI (AUI) 硬依赖**（HTML/CSS/JS 页面渲染），客户端必须安装 ApricityUI
-- AUI 依赖声明为 `side=CLIENT`：专用服务器无需 AUI 也能跑（服务端逻辑不依赖 UI）
+项目的核心原则是：交易规则和账户数据由服务端决定，客户端 UI 只负责展示与发送请求。
 
-## 技术栈
+## 当前版本
 
-- Minecraft 1.21.1 / NeoForge 21.1.x / Java 21
 - Mod ID：`stockmarket`
-- 包名：`com.tanrunn.stockmarket`
-- ApricityUI：`com.sighs:ApricityUI-neoforge-1.21.1:1.2.1`（implementation，硬依赖）
+- Mod 版本：`1.0.0`
+- Minecraft：`1.21.1`
+- NeoForge：`21.1.248`
+- Java：`21`
+- 客户端 UI：ApricityUI `1.2.1`
 
-## 目录结构
+## 功能
 
+### 玩家交易
+
+- 行情列表、当前价格、涨跌幅和成交量
+- 现金、总资产、可用资金、持仓市值和持仓盈亏
+- 市价买入与卖出
+- 限价买入、限价卖出和撤单
+- 委托资金与持仓预留，撤单后按分精确退回
+- 订单、成交和账户数据持久化
+- 玩家离线时限价单保留，重新上线后继续尝试撮合
+- 市场总开关、单笔数量上限、价格和资金的服务端校验
+
+### K 线与 UI
+
+- 浅色证券交易界面
+- 行情、持仓、委托页面切换
+- 行情筛选和排序
+- K 线、成交量、MA5、MA10
+- 鼠标悬停十字线
+- 开盘价、最高价、最低价、收盘价和成交量的彩色 OHLCV 提示
+- 高 DPI Canvas 绘制，减少缩放后的模糊问题
+
+### 服务端与扩展
+
+- 股票定义由数据包 JSON 驱动
+- 价格模拟、撮合、账户和交易逻辑全部在服务端运行
+- 向其他 Mod 开放入金、出金、账户、行情和交易 Java API
+- 支持余额变更、委托、成交、价格变化事件
+- 支持外部经济 Mod 的 `CurrencyBridge` 适配
+
+## 安装
+
+### 客户端
+
+客户端需要同时安装：
+
+1. `stockmarket-1.0.0.jar`
+2. ApricityUI NeoForge 1.21.1 `1.2.1`
+
+ApricityUI 是客户端 UI 运行时依赖。相关文档：[ApricityUI 文档](https://doc.sighs.cc/ApricityUI)。
+
+### 专用服务器
+
+将 `stockmarket-1.0.0.jar` 放入服务器的 `mods` 目录即可。ApricityUI 依赖声明为客户端侧依赖，专用服务器不需要安装 AUI。
+
+构建产物位于：
+
+```text
+build/libs/stockmarket-1.0.0.jar
 ```
-src/main/java/com/tanrunn/stockmarket/
-├── StockMarketMod.java          # 主类
-├── StockMarketModClient.java    # 客户端入口（配置界面）
-└── Config.java                  # 服务端配置
+
+## 玩家命令
+
+打开交易界面：
+
+```text
+/market
 ```
 
-## 开发
+常用查询和交易命令：
+
+```text
+/market list
+/market account
+/market buy <股票ID> <数量>
+/market sell <股票ID> <数量>
+/market order buy <股票ID> <价格> <数量>
+/market order sell <股票ID> <价格> <数量>
+/market order list
+/market order cancel <委托ID>
+```
+
+管理员命令：
+
+```text
+/market reload
+/market reset <玩家>
+/market setprice <股票ID> <价格>
+```
+
+`reload`、`reset` 和 `setprice` 需要 OP 权限。`setprice` 适合调试或管理行情，生产环境请谨慎使用。
+
+## 默认股票
+
+股票定义位于 `src/main/resources/data/stockmarket/stocks/`：
+
+| ID | 名称 | 初始价格 |
+| --- | --- | ---: |
+| `songzhu` | 松竹银行 | 31.20 |
+| `zhujia` | 筑家建设 | 8.20 |
+| `yanhuo` | 烟火食铺 | 12.50 |
+| `liuyun` | 流云商贸 | 15.30 |
+| `changg` | 长歌矿业 | 23.60 |
+| `qingyun` | 青云科技 | 45.80 |
+
+股票 JSON 支持以下字段：
+
+```json
+{
+  "name": "示例公司",
+  "initialPrice": 10.00,
+  "drift": 0.000002,
+  "volatility": 0.006
+}
+```
+
+修改数据包后可以使用 `/market reload` 重载股票定义。已有世界中的价格、历史和账户数据不会因为普通代码构建而被重置。
+
+## 配置
+
+配置文件通常位于：
+
+```text
+config/stockmarket-common.toml
+```
+
+| 配置项 | 默认值 | 说明 |
+| --- | ---: | --- |
+| `enabled` | `true` | 是否允许交易；行情查看和撤单仍可用 |
+| `initialCash` | `1000.0` | 新玩家初始现金 |
+| `feeRate` | `0.001` | 交易手续费率，`0.001` 为 0.1% |
+| `tickInterval` | `100` | 行情更新间隔，100 tick 约为 5 秒 |
+| `maxOrderQty` | `9999` | 单笔委托最大数量 |
+
+所有交易入口都会经过服务端门禁。客户端网络请求、命令和跨 Mod API 不能绕过关闭状态、数量上限、价格、现金或持仓校验。
+
+## 跨 Mod API
+
+公共入口：
+
+```java
+com.tanrunn.stockmarket.api.StockMarketApi
+```
+
+支持：
+
+- 入金、出金、余额和账户流水
+- `requestId` 幂等请求
+- 账户、持仓盈亏、订单和成交查询
+- 股票行情和历史 K 线查询
+- 市价交易、限价委托和撤单
+- 余额变更、委托、成交、价格变化事件
+- 外部货币桥接
+
+金额统一使用整数分，涉及 `ServerPlayer` 的调用必须在服务端主线程执行。出金来源必须先显式注册：
+
+```java
+import com.tanrunn.stockmarket.api.StockMarketApi;
+
+var deposit = StockMarketApi.deposit(
+        player, 10_00L, "my_quests", "完成每日任务", "daily-player-001");
+
+StockMarketApi.registerWithdrawalSource("my_shop");
+var withdraw = StockMarketApi.withdraw(
+        player, 5_00L, "my_shop", "购买配方", "shop-order-001");
+```
+
+完整说明见：[CROSS_MOD_API.md](CROSS_MOD_API.md)。
+
+## 开发与验证
 
 ```bash
-./gradlew build                    # 编译 + 打包 + 单元测试
-./gradlew runClient                # 启动客户端（AUI 在运行时 classpath，UI 可用）
-./gradlew runServer -PserverOnly   # 启动服务端（dev：AUI 降级为 compileOnly）
+# 运行全部单元测试
+./gradlew test
+
+# 测试、编译并打包
+./gradlew build
+
+# 启动客户端开发环境
+./gradlew runClient
+
+# 启动不加载客户端 AUI 的专用服务器开发环境
+./gradlew runServer -PserverOnly
 ```
 
-> **AUI 服务端加载问题（上游）**：AUI 是客户端 mod，dev 环境的 `runServer` 默认会把 AUI 放进运行时 classpath，导致专用服务器加载 AUI 主类崩溃。本工程通过 `-PserverOnly` 属性在服务端运行降级为 `compileOnly` 规避；生产服务器只装本 mod 即可（`mods.toml` 中 AUI 依赖声明为 `side="CLIENT"`，服务器不校验）。等 AUI 作者修复该问题后可去掉此开关。
+当前测试覆盖价格模型、交易精度、订单簿、离线委托、行情模拟、K 线计算和跨 Mod API 契约。
+GitHub Actions 会在 push 和 pull request 时执行 `./gradlew build`。
 
-## 路线图
+## 项目结构
 
-- [ ] 股票/公司实体与行情模拟（服务端）
-- [ ] 玩家账户/持仓持久化
-- [ ] 交易命令与 AUI 行情/交易界面
+```text
+src/main/java/com/tanrunn/stockmarket/
+├── api/                  # 跨 Mod 公共 API、快照类型和事件
+├── client/integration/   # ApricityUI 页面、K 线和客户端交互
+├── common/               # 网络包与客户端/服务端共享数据
+├── server/market/        # 行情、账户、撮合、持久化和交易规则
+└── server/command/       # /market 命令
+
+src/main/resources/
+├── assets/apricityui/    # AUI 页面资源
+└── data/stockmarket/     # 股票数据包定义
+```
+
+## 许可证
+
+当前项目许可证为 `All Rights Reserved`。未经授权不得重新分发或用于其他项目的发行包。
