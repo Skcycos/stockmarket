@@ -3,6 +3,10 @@
   "package": "com.tanrunn.stockmarket.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
+  "client": [
+    "StorageAccessor",
+    "LocalStorageMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

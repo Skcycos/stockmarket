@@ -38,7 +38,7 @@ public final class MarketIntegration {
     private static final String PATH = "screens/market.html";
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
     private static final double PRICE_STEP = 0.10;
-    private static final int MAX_QTY = 9999;
+    private static final int DEFAULT_MAX_QTY = 9999;
     private static final long CONFIRM_WINDOW_MS = 5_000;
     private static final long REQUEST_COOLDOWN_MS = 900;
     private static final DecimalFormat VOLUME = new DecimalFormat("#,##0");
@@ -63,6 +63,7 @@ public final class MarketIntegration {
     private static final class MarketScreen extends ApricityScreen {
         private String selectedStockId;
         private int quantity = 100;
+        private int maxQty = DEFAULT_MAX_QTY;
         private double limitPrice = 1.0;
         private List<StockInfo> stocks = List.of();
         private MarketSnapshotC2S pending;
@@ -81,6 +82,8 @@ public final class MarketIntegration {
         private double hoverX = Double.NaN;
         private double hoverY = Double.NaN;
         private String lastKlineRenderSignature;
+        private Document boundDocument;
+        private long boundGeneration = Long.MIN_VALUE;
 
         MarketScreen() {
             super(PATH);
@@ -99,6 +102,21 @@ public final class MarketIntegration {
             Document doc = getLinkedDocument();
             if (doc == null) return;
 
+            bindDocument(doc);
+            applyPending();
+        }
+
+        /**
+         * AUI refreshes a Document in place but rebuilds every child Element.
+         * External Java listeners therefore have to be installed again for each
+         * refresh generation.
+         */
+        private void bindDocument(Document doc) {
+            long generation = doc.getRefreshGeneration();
+            if (boundDocument == doc && boundGeneration == generation) return;
+            boundDocument = doc;
+            boundGeneration = generation;
+
             bindStepper(doc, "aui-qty-minus", -100);
             bindStepper(doc, "aui-qty-plus", +100);
             bindStepper(doc, "aui-qty-plus-one", +1);
@@ -113,6 +131,7 @@ public final class MarketIntegration {
             bindViewTab(doc, "aui-tab-quotes", "quotes");
             bindViewTab(doc, "aui-tab-portfolio", "portfolio");
             bindViewTab(doc, "aui-tab-orders", "orders");
+            bindViewTab(doc, "aui-tab-news", "news");
             bindOrderFilter(doc, "aui-order-filter-all", "all");
             bindOrderFilter(doc, "aui-order-filter-buy", "buy");
             bindOrderFilter(doc, "aui-order-filter-sell", "sell");
@@ -154,14 +173,23 @@ public final class MarketIntegration {
                 refresh.addEventListener("click", event ->
                         PacketDistributor.sendToServer(new MarketRequestC2S(false, false)));
             }
-            applyPending();
+        }
+
+        @Override
+        public void tick() {
+            super.tick();
+            Document doc = getLinkedDocument();
+            if (doc != null && (boundDocument != doc || boundGeneration != doc.getRefreshGeneration())) {
+                bindDocument(doc);
+                applyPending();
+            }
         }
 
         private void bindStepper(Document doc, String id, int delta) {
             Element stepper = doc.getElementById(id);
             if (stepper == null) return;
             stepper.addEventListener("click", event -> {
-                quantity = Math.max(1, Math.min(quantity + delta, MAX_QTY));
+                quantity = Math.max(1, Math.min(quantity + delta, maxQty));
                 Element qty = doc.getElementById("aui-qty");
                 if (qty != null) {
                     qty.setTextContent(String.valueOf(quantity));
@@ -182,9 +210,11 @@ public final class MarketIntegration {
             setActive(doc, "aui-tab-quotes", "quotes".equals(view));
             setActive(doc, "aui-tab-portfolio", "portfolio".equals(view));
             setActive(doc, "aui-tab-orders", "orders".equals(view));
+            setActive(doc, "aui-tab-news", "news".equals(view));
             setActive(doc, "aui-quotes-view", "quotes".equals(view));
             setActive(doc, "aui-portfolio-view", "portfolio".equals(view));
             setActive(doc, "aui-orders-view", "orders".equals(view));
+            setActive(doc, "aui-news-view", "news".equals(view));
             setActive(doc, "aui-quotes-tail", "quotes".equals(view));
         }
 
@@ -192,7 +222,7 @@ public final class MarketIntegration {
             if (pending == null || selectedStockId == null) return;
             int held = pending.account().holdings().getOrDefault(selectedStockId, 0);
             if (held > 0) {
-                quantity = Math.min(held, MAX_QTY);
+                quantity = Math.min(held, maxQty);
                 setText(doc, "aui-qty", String.valueOf(quantity));
                 updateEstimate(doc);
             }
@@ -359,6 +389,9 @@ public final class MarketIntegration {
             if (pending == null) return;
             Document doc = getLinkedDocument();
             if (doc == null) return;
+            bindDocument(doc);
+            maxQty = Math.max(1, pending.maxOrderQty());
+            quantity = Math.min(quantity, maxQty);
             stocks = pending.stocks();
             if (selectedStockId == null && !stocks.isEmpty()) {
                 selectedStockId = stocks.get(0).id();
@@ -370,6 +403,7 @@ public final class MarketIntegration {
             renderStockControls(doc);
             renderStocks(doc);
             renderMarketOverview(doc);
+            renderNewsPage(doc);
             renderAccount(doc, pending.account());
             renderKlineControls(doc);
             renderSelected(doc);
@@ -387,7 +421,7 @@ public final class MarketIntegration {
             }
             Element list = doc.getElementById("aui-news-list");
             if (list == null) return;
-            List<MarketNews> items = pending.news().stream().limit(5).toList();
+            List<MarketNews> items = pending.news().stream().limit(1).toList();
             List<Element> existing = new ArrayList<>(list.getChildren());
             if (items.isEmpty()) {
                 if (existing.size() != 1 || !"true".equals(existing.get(0).getAttribute("data-empty"))) {
@@ -399,23 +433,109 @@ public final class MarketIntegration {
                 }
                 return;
             }
-            if (existing.size() != items.size()) {
+            if (existing.size() != 1) {
+                for (Element child : existing) list.removeChild(child);
+                existing.clear();
+            }
+            MarketNews item = items.get(0);
+            Element row = existing.isEmpty() ? doc.createElement("div") : existing.get(0);
+            if (existing.isEmpty()) {
+                row.setAttribute("class", "news-row");
+                row.appendChild(doc.createElement("span"));
+                row.appendChild(doc.createElement("span"));
+                list.appendChild(row);
+            }
+            List<Element> cells = new ArrayList<>(row.getChildren());
+            cells.get(0).setTextContent(item.title());
+            cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
+        }
+
+        private void renderNewsPage(Document doc) {
+            if (pending == null) return;
+            Element list = doc.getElementById("aui-news-page");
+            if (list == null) return;
+            List<MarketNews> items = pending.news();
+            List<Element> existing = new ArrayList<>(list.getChildren());
+            if (items.isEmpty()) {
+                if (existing.size() == 1 && "true".equals(existing.get(0).getAttribute("data-empty"))) return;
+                for (Element child : existing) list.removeChild(child);
+                Element empty = doc.createElement("div");
+                empty.setAttribute("class", "empty-state");
+                empty.setAttribute("data-empty", "true");
+                empty.setTextContent("暂无市场消息");
+                list.appendChild(empty);
+                setText(doc, "aui-news-hint", "暂无消息");
+                return;
+            }
+            setText(doc, "aui-news-hint", "共 " + items.size() + " 条 · 最新消息在上");
+            boolean sameStructure = existing.size() == items.size();
+            if (sameStructure) {
+                for (int i = 0; i < items.size(); i++) {
+                    if (!String.valueOf(items.get(i).id()).equals(existing.get(i).getAttribute("data-news"))) {
+                        sameStructure = false;
+                        break;
+                    }
+                }
+            }
+            if (!sameStructure) {
                 for (Element child : existing) list.removeChild(child);
                 existing.clear();
             }
             for (int i = 0; i < items.size(); i++) {
                 MarketNews item = items.get(i);
-                Element row = i < existing.size() ? existing.get(i) : doc.createElement("div");
-                if (i >= existing.size()) {
-                    row.setAttribute("class", "news-row");
-                    row.appendChild(doc.createElement("span"));
-                    row.appendChild(doc.createElement("span"));
+                Element row = i < existing.size() ? existing.get(i) : null;
+                if (row == null) {
+                    row = createNewsPageRow(doc);
                     list.appendChild(row);
                 }
-                List<Element> cells = new ArrayList<>(row.getChildren());
-                cells.get(0).setTextContent(item.title());
-                cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
+                updateNewsPageRow(row, item);
             }
+        }
+
+        private Element createNewsPageRow(Document doc) {
+            Element row = doc.createElement("div");
+            row.setAttribute("class", "news-page-row");
+            Element meta = doc.createElement("div");
+            meta.setAttribute("class", "news-page-meta");
+            meta.appendChild(doc.createElement("span"));
+            meta.appendChild(doc.createElement("span"));
+            row.appendChild(meta);
+            row.appendChild(doc.createElement("div"));
+            row.appendChild(doc.createElement("div"));
+            Element foot = doc.createElement("div");
+            foot.setAttribute("class", "news-page-foot");
+            foot.appendChild(doc.createElement("span"));
+            foot.appendChild(doc.createElement("span"));
+            row.appendChild(foot);
+            return row;
+        }
+
+        private void updateNewsPageRow(Element row, MarketNews item) {
+            row.setAttribute("data-news", String.valueOf(item.id()));
+            List<Element> children = new ArrayList<>(row.getChildren());
+            List<Element> meta = new ArrayList<>(children.get(0).getChildren());
+            meta.get(0).setTextContent(newsTypeLabel(item.type()) + " · " + item.industry());
+            meta.get(1).setTextContent("第" + item.dayIndex() + "日");
+            children.get(1).setAttribute("class", "news-page-title");
+            children.get(1).setTextContent(item.title());
+            children.get(2).setAttribute("class", "news-page-detail");
+            children.get(2).setTextContent(item.detail());
+            List<Element> foot = new ArrayList<>(children.get(3).getChildren());
+            foot.get(0).setTextContent(stockName(item.stockId()));
+            double impact = item.impactPct();
+            Element impactElement = foot.get(1);
+            impactElement.setAttribute("class", "news-page-impact"
+                    + (impact > 0 ? " up" : impact < 0 ? " down" : ""));
+            impactElement.setTextContent(impact == 0 ? "价格影响：—" : "价格影响 " + String.format("%+.2f%%", impact));
+        }
+
+        private String newsTypeLabel(String type) {
+            return switch (type) {
+                case "DIVIDEND" -> "分红消息";
+                case "SPLIT" -> "拆股消息";
+                case "HALT" -> "停牌消息";
+                default -> "市场消息";
+            };
         }
 
         private void renderStocks(Document doc) {
@@ -534,7 +654,6 @@ public final class MarketIntegration {
                     + MONEY.format(account.availableHoldingsValue())
                     + " · 冻结持仓 " + account.reservedHoldingsQuantity() + "股 / "
                     + MONEY.format(account.reservedHoldingsValue()));
-            renderOrders(doc, account);
             renderPortfolio(doc, account);
             renderOrdersPage(doc, account);
         }
@@ -741,17 +860,6 @@ public final class MarketIntegration {
                 cells.get(1).setAttribute("class", "trade-note");
                 cells.get(1).setTextContent("第" + trade.dayIndex() + "日 · 手续费 " + MONEY.format(trade.fee()));
             }
-        }
-
-        /**
-         * 委托列表：每行包含委托文本与撤单按钮，撤单按钮绑定订单 ID。
-         * 委托集合不变时只更新已有行的文本，避免高频重建 DOM；
-         * 只有委托集合变化（新挂单/成交/撤单）才重建列表。
-         */
-        private void renderOrders(Document doc, AccountInfo account) {
-            Element list = doc.getElementById("aui-orders");
-            if (list == null) return;
-            renderOrderList(doc, list, account.orders(), "暂无委托");
         }
 
         private void renderOrderList(Document doc, Element list, List<OrderInfo> orders, String emptyText) {

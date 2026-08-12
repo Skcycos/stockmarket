@@ -24,16 +24,23 @@ public record MarketSnapshotC2S(
         List<StockInfo> stocks,
         AccountInfo account,
         List<MarketIndexInfo> indices,
-        List<MarketNews> news) implements CustomPacketPayload {
+        List<MarketNews> news,
+        int maxOrderQty) implements CustomPacketPayload {
 
     public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account) {
-        this(openPanel, message, stocks, account, List.of(), List.of());
+        this(openPanel, message, stocks, account, List.of(), List.of(), 9999);
+    }
+
+    public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account,
+                             List<MarketIndexInfo> indices, List<MarketNews> news) {
+        this(openPanel, message, stocks, account, indices, news, 9999);
     }
 
     public MarketSnapshotC2S {
         stocks = List.copyOf(stocks == null ? List.of() : stocks);
         indices = List.copyOf(indices == null ? List.of() : indices);
         news = List.copyOf(news == null ? List.of() : news);
+        maxOrderQty = Math.max(1, maxOrderQty);
     }
 
     public static final Type<MarketSnapshotC2S> TYPE = new Type<>(
@@ -78,6 +85,7 @@ public record MarketSnapshotC2S(
                 news.add(new MarketNews(buf.readVarLong(), buf.readVarLong(), buf.readUtf(64), buf.readUtf(64),
                         buf.readUtf(32), buf.readUtf(256), buf.readUtf(512), buf.readDouble()));
             }
+            int maxOrderQty = buf.readVarInt();
             double cash = buf.readDouble();
             double totalValue = buf.readDouble();
             double holdingsValue = buf.readDouble();
@@ -118,7 +126,7 @@ public record MarketSnapshotC2S(
                 new AccountInfo(cash, totalValue, holdingsValue, unrealizedPnl, realizedPnl,
                             dailyPnl, totalPnl, reservedCash, availableHoldingsValue,
                             reservedHoldingsValue, availableHoldingsQuantity, reservedHoldingsQuantity,
-                            holdings, costBasis, orders, trades), indices, news);
+                            holdings, costBasis, orders, trades), indices, news, maxOrderQty);
         }
 
         @Override
@@ -166,6 +174,7 @@ public record MarketSnapshotC2S(
                 buf.writeUtf(item.detail(), 512);
                 buf.writeDouble(item.impactPct());
             }
+            buf.writeVarInt(value.maxOrderQty());
             buf.writeDouble(value.account().cash());
             buf.writeDouble(value.account().totalValue());
             buf.writeDouble(value.account().holdingsValue());

@@ -48,6 +48,28 @@ class OrderBookTest {
         assertEquals(50.0, restored.get(id).reservedCostBasis(), 0.0001);
     }
 
+    @Test
+    void splitKeepsExactBuyReservationForRefundAndFill() {
+        double originalReservation = TradeEngine.buyReservation(10.01, 9_999, 0.001);
+        OrderBook book = new OrderBook();
+        long id = book.place(PLAYER, "aaa", true, 10.01, 9_999, 0, originalReservation);
+
+        book.applySplit("aaa", 2, 1);
+        OrderBook.Order split = book.get(id);
+        assertEquals(5.01, split.price(), 0.001);
+        assertEquals(19_998, split.quantity());
+        assertEquals(originalReservation, split.reservedCash(), 0.0001,
+                "a split must not recompute the amount already reserved");
+
+        HoldingAccount afterReservation = new HoldingAccount(0, Map.of());
+        HoldingAccount refunded = TradeEngine.refundBuy(afterReservation, split.reservedCash());
+        assertEquals(originalReservation, refunded.cash(), 0.0001,
+                "cancelling a split-adjusted order must refund the original reservation");
+        HoldingAccount filled = TradeEngine.fillBuy(afterReservation, "aaa", split.quantity(), split.reservedCash());
+        assertEquals(originalReservation, filled.costBasis().get("aaa"), 0.0001,
+                "filled shares must keep the original acquisition cost");
+    }
+
     // 2. 新订单 ID 能从历史最大 ID 继续递增
     @Test
     void newOrderIdContinuesAfterRestoredMax() {

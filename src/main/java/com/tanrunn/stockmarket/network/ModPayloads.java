@@ -17,7 +17,9 @@ public final class ModPayloads {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        // Bump the channel protocol whenever a payload codec changes. The
+        // snapshot now carries the server-configured max order quantity.
+        PayloadRegistrar registrar = event.registrar("2");
         registrar.playToClient(MarketSnapshotC2S.TYPE, MarketSnapshotC2S.STREAM_CODEC, ClientPayloadHandler::handleSnapshot);
         registrar.playToServer(MarketRequestC2S.TYPE, MarketRequestC2S.STREAM_CODEC, ServerPayloadHandler::handle);
         registrar.playToServer(TradeRequestC2S.TYPE, TradeRequestC2S.STREAM_CODEC, ServerPayloadHandler::handle);
