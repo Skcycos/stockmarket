@@ -130,8 +130,12 @@ public final class TradeEngine {
      *  exact same formula as {@link #reserveBuy}, so the refund always equals the
      *  reserved amount and cancel is fully reversible. */
     public static HoldingAccount refundBuy(HoldingAccount account, double price, int quantity, double feeRate) {
-        double total = buyReservation(price, quantity, feeRate);
-        double cash = round2(account.cash() + total);
+        return refundBuy(account, buyReservation(price, quantity, feeRate));
+    }
+
+    /** Refunds the exact amount that was reserved when the order was created. */
+    public static HoldingAccount refundBuy(HoldingAccount account, double reservedCash) {
+        double cash = round2(account.cash() + Math.max(0, reservedCash));
         return new HoldingAccount(cash, account.holdings(), account.costBasis(), account.realizedPnl());
     }
 
@@ -152,12 +156,16 @@ public final class TradeEngine {
     /** Add filled limit-buy shares and their fee-inclusive acquisition cost. */
     public static HoldingAccount fillBuy(HoldingAccount account, String stockId, double price,
                                          int quantity, double feeRate) {
+        return fillBuy(account, stockId, quantity, buyReservation(price, quantity, feeRate));
+    }
+
+    /** Adds filled shares using the exact fee-inclusive acquisition cost reserved for the order. */
+    public static HoldingAccount fillBuy(HoldingAccount account, String stockId, int quantity,
+                                         double acquisitionCost) {
         Map<String, Integer> holdings = new HashMap<>(account.holdings());
         holdings.merge(stockId, quantity, Integer::sum);
-        double gross = round2(price * quantity);
-        double fee = round2(gross * feeRate);
         Map<String, Double> costBasis = new HashMap<>(account.costBasis());
-        costBasis.merge(stockId, round2(gross + fee), Double::sum);
+        costBasis.merge(stockId, round2(Math.max(0, acquisitionCost)), Double::sum);
         return new HoldingAccount(account.cash(), holdings, costBasis, account.realizedPnl());
     }
 

@@ -147,7 +147,10 @@ public final class MarketService {
             HoldingAccount account = AccountService.get(player);
             HoldingAccount updated;
             if (order.buy()) {
-                updated = TradeEngine.fillBuy(account, order.stockId(), order.price(), order.quantity(), Config.FEE_RATE.get());
+                double reservedCash = order.reservedCash() > 0
+                        ? order.reservedCash()
+                        : TradeEngine.buyReservation(order.price(), order.quantity(), Config.FEE_RATE.get());
+                updated = TradeEngine.fillBuy(account, order.stockId(), order.quantity(), reservedCash);
             } else {
                 updated = TradeEngine.fillSell(account, order.stockId(), fillPrice, order.quantity(),
                         Config.FEE_RATE.get(), order.reservedCostBasis());
@@ -251,7 +254,9 @@ public final class MarketService {
             if (order.buy()) {
                 // Reserved buy cash remains part of total assets until the order
                 // fills or is cancelled; only the fee becomes a real cost on fill.
-                reservedCash += TradeEngine.buyReservation(order.price(), order.quantity(), Config.FEE_RATE.get());
+                reservedCash += order.reservedCash() > 0
+                        ? order.reservedCash()
+                        : TradeEngine.buyReservation(order.price(), order.quantity(), Config.FEE_RATE.get());
             } else {
                 double reservedValue = priceOf(order.stockId()) * order.quantity();
                 reservedHoldingsValue += reservedValue;
@@ -342,8 +347,9 @@ public final class MarketService {
             return new LimitOrderPlacement(false, result.message(), result.account(), -1);
         }
         AccountService.set(player, result.account());
+        double reservedCash = buy ? TradeEngine.buyReservation(price, quantity, Config.FEE_RATE.get()) : 0;
         long orderId = savedData.orderBook().place(player.getUUID(), stockId, buy, PriceModel.round(price), quantity,
-                reservedCostBasis);
+                reservedCostBasis, reservedCash);
         NeoForge.EVENT_BUS.post(new OrderEvent(player, OrderEvent.Type.PLACED, orderId, stockId, buy,
                 cents(price), quantity));
         // 挂单后立刻尝试撮合一次（可能价格已经越过限价）
@@ -371,7 +377,9 @@ public final class MarketService {
         order = savedData.orderBook().cancel(orderId);
         HoldingAccount account = AccountService.get(player);
         HoldingAccount updated = order.buy()
-                ? TradeEngine.refundBuy(account, order.price(), order.quantity(), Config.FEE_RATE.get())
+                ? (order.reservedCash() > 0
+                        ? TradeEngine.refundBuy(account, order.reservedCash())
+                        : TradeEngine.refundBuy(account, order.price(), order.quantity(), Config.FEE_RATE.get()))
                 : TradeEngine.refundSell(account, order.stockId(), order.quantity(), order.reservedCostBasis());
         AccountService.set(player, updated);
         NeoForge.EVENT_BUS.post(new OrderEvent(player, OrderEvent.Type.CANCELLED, order.id(), order.stockId(),
@@ -433,7 +441,8 @@ public final class MarketService {
     }
 
     public MarketSnapshotC2S snapshotFor(ServerPlayer player, boolean openPanel, String message) {
-        return new MarketSnapshotC2S(openPanel, message, snapshot(), accountInfo(player), indices(), news());
+        return new MarketSnapshotC2S(openPanel, message, snapshot(), accountInfo(player), indices(), news(),
+                Config.MAX_ORDER_QTY.get());
     }
 
     private HoldingAccount normalizedAccount(ServerPlayer player) {
@@ -467,7 +476,9 @@ public final class MarketService {
         double value = account.totalValue(this::priceOf);
         for (OrderBook.Order order : savedData.orderBook().ordersOf(player.getUUID())) {
             value += order.buy()
-                    ? TradeEngine.buyReservation(order.price(), order.quantity(), Config.FEE_RATE.get())
+                    ? (order.reservedCash() > 0
+                            ? order.reservedCash()
+                            : TradeEngine.buyReservation(order.price(), order.quantity(), Config.FEE_RATE.get()))
                     : priceOf(order.stockId()) * order.quantity();
         }
         return round2(value);

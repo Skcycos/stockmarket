@@ -38,7 +38,7 @@ public final class MarketIntegration {
     private static final String PATH = "screens/market.html";
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
     private static final double PRICE_STEP = 0.10;
-    private static final int MAX_QTY = 9999;
+    private static final int DEFAULT_MAX_QTY = 9999;
     private static final long CONFIRM_WINDOW_MS = 5_000;
     private static final long REQUEST_COOLDOWN_MS = 900;
     private static final DecimalFormat VOLUME = new DecimalFormat("#,##0");
@@ -63,6 +63,7 @@ public final class MarketIntegration {
     private static final class MarketScreen extends ApricityScreen {
         private String selectedStockId;
         private int quantity = 100;
+        private int maxQty = DEFAULT_MAX_QTY;
         private double limitPrice = 1.0;
         private List<StockInfo> stocks = List.of();
         private MarketSnapshotC2S pending;
@@ -81,6 +82,8 @@ public final class MarketIntegration {
         private double hoverX = Double.NaN;
         private double hoverY = Double.NaN;
         private String lastKlineRenderSignature;
+        private Document boundDocument;
+        private long boundGeneration = Long.MIN_VALUE;
 
         MarketScreen() {
             super(PATH);
@@ -98,6 +101,21 @@ public final class MarketIntegration {
             super.init();
             Document doc = getLinkedDocument();
             if (doc == null) return;
+
+            bindDocument(doc);
+            applyPending();
+        }
+
+        /**
+         * AUI refreshes a Document in place but rebuilds every child Element.
+         * External Java listeners therefore have to be installed again for each
+         * refresh generation.
+         */
+        private void bindDocument(Document doc) {
+            long generation = doc.getRefreshGeneration();
+            if (boundDocument == doc && boundGeneration == generation) return;
+            boundDocument = doc;
+            boundGeneration = generation;
 
             bindStepper(doc, "aui-qty-minus", -100);
             bindStepper(doc, "aui-qty-plus", +100);
@@ -154,14 +172,23 @@ public final class MarketIntegration {
                 refresh.addEventListener("click", event ->
                         PacketDistributor.sendToServer(new MarketRequestC2S(false, false)));
             }
-            applyPending();
+        }
+
+        @Override
+        public void tick() {
+            super.tick();
+            Document doc = getLinkedDocument();
+            if (doc != null && (boundDocument != doc || boundGeneration != doc.getRefreshGeneration())) {
+                bindDocument(doc);
+                applyPending();
+            }
         }
 
         private void bindStepper(Document doc, String id, int delta) {
             Element stepper = doc.getElementById(id);
             if (stepper == null) return;
             stepper.addEventListener("click", event -> {
-                quantity = Math.max(1, Math.min(quantity + delta, MAX_QTY));
+                quantity = Math.max(1, Math.min(quantity + delta, maxQty));
                 Element qty = doc.getElementById("aui-qty");
                 if (qty != null) {
                     qty.setTextContent(String.valueOf(quantity));
@@ -192,7 +219,7 @@ public final class MarketIntegration {
             if (pending == null || selectedStockId == null) return;
             int held = pending.account().holdings().getOrDefault(selectedStockId, 0);
             if (held > 0) {
-                quantity = Math.min(held, MAX_QTY);
+                quantity = Math.min(held, maxQty);
                 setText(doc, "aui-qty", String.valueOf(quantity));
                 updateEstimate(doc);
             }
@@ -359,6 +386,9 @@ public final class MarketIntegration {
             if (pending == null) return;
             Document doc = getLinkedDocument();
             if (doc == null) return;
+            bindDocument(doc);
+            maxQty = Math.max(1, pending.maxOrderQty());
+            quantity = Math.min(quantity, maxQty);
             stocks = pending.stocks();
             if (selectedStockId == null && !stocks.isEmpty()) {
                 selectedStockId = stocks.get(0).id();

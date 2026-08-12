@@ -1,5 +1,6 @@
 package com.tanrunn.stockmarket.server.market;
 
+import com.tanrunn.stockmarket.Config;
 import com.tanrunn.stockmarket.common.Candle;
 import com.tanrunn.stockmarket.common.MarketNews;
 import net.minecraft.core.HolderLookup;
@@ -91,13 +92,21 @@ public class MarketSavedData extends SavedData {
             double price = order.getDouble("price");
             int qty = order.getInt("qty");
             double reservedCostBasis = order.getDouble("reservedCostBasis");
+            // Older saves did not persist the exact buy reservation. Recover a
+            // best-effort amount for those orders; new saves never need to
+            // recompute it after a split.
+            double reservedCash = order.contains("reservedCash", Tag.TAG_ANY_NUMERIC)
+                    ? order.getDouble("reservedCash")
+                    : (buy ? TradeEngine.buyReservation(price, qty, Config.FEE_RATE.get()) : 0);
             if (order.contains("id", Tag.TAG_ANY_NUMERIC)) {
                 // 用原始 ID 恢复订单，保证重启后委托 ID 不变；
                 // restore() 不会触发 dirty（恢复是加载存档，不是新增委托）。
-                data.orderBook.restore(order.getLong("id"), player, stock, buy, price, qty, reservedCostBasis);
+                data.orderBook.restore(order.getLong("id"), player, stock, buy, price, qty,
+                        reservedCostBasis, reservedCash);
             } else {
                 // 旧存档（无 id 字段）：按原逻辑分配 ID，同样走 restore 避免误标 dirty
-                data.orderBook.restore(data.orderBook.nextId(), player, stock, buy, price, qty, reservedCostBasis);
+                data.orderBook.restore(data.orderBook.nextId(), player, stock, buy, price, qty,
+                        reservedCostBasis, reservedCash);
             }
         }
         ListTag actions = tag.getList("corporateActions", Tag.TAG_COMPOUND);
@@ -163,6 +172,9 @@ public class MarketSavedData extends SavedData {
             o.putInt("qty", order.quantity());
             if (order.reservedCostBasis() > 0) {
                 o.putDouble("reservedCostBasis", order.reservedCostBasis());
+            }
+            if (order.buy() && order.reservedCash() > 0) {
+                o.putDouble("reservedCash", order.reservedCash());
             }
             orders.add(o);
         }

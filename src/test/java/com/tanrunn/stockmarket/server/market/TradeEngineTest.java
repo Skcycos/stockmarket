@@ -229,6 +229,17 @@ class TradeEngineTest {
     }
 
     @Test
+    void exactReservationRefundWorksAfterPriceAndQuantityChange() {
+        double reserved = TradeEngine.buyReservation(10.01, 9_999, 0.001);
+        HoldingAccount afterReservation = new HoldingAccount(0, Map.of());
+        HoldingAccount refunded = TradeEngine.refundBuy(afterReservation, reserved);
+        assertEquals(reserved, refunded.cash(), 0.0001);
+
+        HoldingAccount filled = TradeEngine.fillBuy(afterReservation, "aaa", 19_998, reserved);
+        assertEquals(reserved, filled.costBasis().get("aaa"), 0.0001);
+    }
+
+    @Test
     void dividendCreditsCentsWithoutChangingHoldingsOrBasis() {
         HoldingAccount account = new HoldingAccount(10, Map.of("aaa", 7), Map.of("aaa", 70.0), 0);
         HoldingAccount paid = TradeEngine.payDividend(account, 7, 0.05);

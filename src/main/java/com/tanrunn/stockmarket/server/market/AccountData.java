@@ -135,7 +135,6 @@ public class AccountData implements INBTSerializable<CompoundTag> {
                     entry.getString("source"),
                     entry.getString("reason")));
         }
-        while (ledger.size() > 200) ledger.remove(ledger.size() - 1);
     }
 
     public HoldingAccount toView() {
@@ -158,8 +157,5 @@ public class AccountData implements INBTSerializable<CompoundTag> {
 
     public void addTransaction(TransactionRecord transaction) {
         ledger.add(0, transaction);
-        while (ledger.size() > 200) {
-            ledger.remove(ledger.size() - 1);
-        }
     }
 }

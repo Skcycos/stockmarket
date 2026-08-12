@@ -19,9 +19,14 @@ import java.util.UUID;
  */
 public final class OrderBook {
     public record Order(long id, UUID player, String stockId, boolean buy, double price, int quantity,
-                        double reservedCostBasis) {
+                        double reservedCostBasis, double reservedCash) {
         public Order(long id, UUID player, String stockId, boolean buy, double price, int quantity) {
-            this(id, player, stockId, buy, price, quantity, 0);
+            this(id, player, stockId, buy, price, quantity, 0, 0);
+        }
+
+        public Order(long id, UUID player, String stockId, boolean buy, double price, int quantity,
+                     double reservedCostBasis) {
+            this(id, player, stockId, buy, price, quantity, reservedCostBasis, 0);
         }
     }
 
@@ -63,8 +68,14 @@ public final class OrderBook {
     /** Places an order with the cost basis reserved for a sell order. */
     public long place(UUID player, String stockId, boolean buy, double price, int quantity,
                       double reservedCostBasis) {
+        return place(player, stockId, buy, price, quantity, reservedCostBasis, 0);
+    }
+
+    /** Places an order with both the reserved sell cost basis and exact buy cash reservation. */
+    public long place(UUID player, String stockId, boolean buy, double price, int quantity,
+                      double reservedCostBasis, double reservedCash) {
         long id = nextId++;
-        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis));
+        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis, reservedCash));
         dirtyHandler.run();
         return id;
     }
@@ -81,7 +92,12 @@ public final class OrderBook {
 
     public long restore(long id, UUID player, String stockId, boolean buy, double price, int quantity,
                         double reservedCostBasis) {
-        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis));
+        return restore(id, player, stockId, buy, price, quantity, reservedCostBasis, 0);
+    }
+
+    public long restore(long id, UUID player, String stockId, boolean buy, double price, int quantity,
+                        double reservedCostBasis, double reservedCash) {
+        orders.put(id, new Order(id, player, stockId, buy, price, quantity, reservedCostBasis, reservedCash));
         nextId = Math.max(nextId, id + 1);
         return id;
     }
@@ -130,7 +146,7 @@ public final class OrderBook {
             }
             entry.setValue(new Order(order.id(), order.player(), order.stockId(), order.buy(),
                     Math.max(0.01, PriceModel.round(order.price() / ratio)), (int) scaled,
-                    order.reservedCostBasis()));
+                    order.reservedCostBasis(), order.reservedCash()));
             changed = true;
         }
         if (changed) dirtyHandler.run();
