@@ -298,7 +298,7 @@ public final class MarketIntegration {
                     armedAction = key;
                     armedUntil = now + CONFIRM_WINDOW_MS;
                     setText(doc, "aui-msg", "再次点击确认" + ("sell-all-holdings".equals(action)
-                            ? "卖出全部可用持仓" : "撤销全部委托"));
+                            ? "清仓出货" : "尽数撤单"));
                     return;
                 }
                 armedAction = null;
@@ -428,7 +428,7 @@ public final class MarketIntegration {
                     for (Element child : existing) list.removeChild(child);
                     Element empty = doc.createElement("span");
                     empty.setAttribute("data-empty", "true");
-                    empty.setTextContent("暂无市场消息");
+                    empty.setTextContent("暂无见闻");
                     list.appendChild(empty);
                 }
                 return;
@@ -464,12 +464,12 @@ public final class MarketIntegration {
                 Element empty = doc.createElement("div");
                 empty.setAttribute("class", "empty-state");
                 empty.setAttribute("data-empty", "true");
-                empty.setTextContent("暂无市场消息");
+                empty.setTextContent("暂无见闻");
                 list.appendChild(empty);
-                setText(doc, "aui-news-hint", "暂无消息");
+                setText(doc, "aui-news-hint", "暂无见闻");
                 return;
             }
-            setText(doc, "aui-news-hint", "共 " + items.size() + " 条 · 最新消息在上");
+            setText(doc, "aui-news-hint", "共 " + items.size() + " 条 · 最新见闻在上");
             boolean sameStructure = existing.size() == items.size();
             if (sameStructure) {
                 for (int i = 0; i < items.size(); i++) {
@@ -533,10 +533,10 @@ public final class MarketIntegration {
 
         private String newsTypeLabel(String type) {
             return switch (type) {
-                case "DIVIDEND" -> "分红消息";
-                case "SPLIT" -> "拆股消息";
-                case "HALT" -> "停牌消息";
-                default -> "市场消息";
+                case "DIVIDEND" -> "分红喜报";
+                case "SPLIT" -> "拆股公告";
+                case "HALT" -> "停牌通告";
+                default -> "市井见闻";
             };
         }
 
@@ -642,7 +642,7 @@ public final class MarketIntegration {
             setPnl(doc, "aui-total-pnl", account.totalPnl());
             StringBuilder holdings = new StringBuilder();
             if (account.holdings().isEmpty()) {
-                holdings.append("暂无持仓");
+                holdings.append("暂无持股");
             } else {
                 for (Map.Entry<String, Integer> entry : account.holdings().entrySet()) {
                     if (holdings.length() > 0) holdings.append("、");
@@ -650,11 +650,11 @@ public final class MarketIntegration {
                 }
             }
             setText(doc, "aui-holdings", holdings.toString());
-            setText(doc, "aui-account-detail", "可用现金 " + MONEY.format(account.cash())
-                    + " · 冻结资金 " + MONEY.format(account.reservedCash())
-                    + " · 可用持仓 " + account.availableHoldingsQuantity() + "股 / "
+            setText(doc, "aui-account-detail", "余银 " + MONEY.format(account.cash())
+                    + " · 冻结银两 " + MONEY.format(account.reservedCash())
+                    + " · 可用持股 " + account.availableHoldingsQuantity() + "股 / "
                     + MONEY.format(account.availableHoldingsValue())
-                    + " · 冻结持仓 " + account.reservedHoldingsQuantity() + "股 / "
+                    + " · 冻结持股 " + account.reservedHoldingsQuantity() + "股 / "
                     + MONEY.format(account.reservedHoldingsValue()));
             renderPortfolio(doc, account);
             renderOrdersPage(doc, account);
@@ -666,7 +666,7 @@ public final class MarketIntegration {
             setPnl(doc, "aui-realized-pnl", account.realizedPnl());
             setPnl(doc, "aui-portfolio-daily-pnl", account.dailyPnl());
             setText(doc, "aui-portfolio-hint", "可用 " + account.availableHoldingsQuantity()
-                    + " 股 · 冻结 " + account.reservedHoldingsQuantity() + " 股 · 点击股票进入交易");
+                    + " 股 · 冻结 " + account.reservedHoldingsQuantity() + " 股 · 点选股票入市");
             renderPortfolioControls(doc);
 
             Element list = doc.getElementById("aui-portfolio-list");
@@ -714,7 +714,7 @@ public final class MarketIntegration {
                 Element empty = doc.createElement("div");
                 empty.setAttribute("class", "empty-state");
                 empty.setAttribute("data-empty", "true");
-                empty.setTextContent("暂无持仓，买入股票后会显示在这里");
+                empty.setTextContent("暂无持股，入市买入后自会显示");
                 list.appendChild(empty);
             } else if (!heldStocks.isEmpty()) {
                 for (Element child : new ArrayList<>(list.getChildren())) {
@@ -811,7 +811,7 @@ public final class MarketIntegration {
                                 || ("buy".equals(orderFilter) && order.buy())
                                 || ("sell".equals(orderFilter) && !order.buy()))
                         .toList();
-                renderOrderList(doc, list, filtered, "暂无符合条件的委托");
+                renderOrderList(doc, list, filtered, "暂无符合条件的挂单");
             }
             renderTradeHistory(doc, account.trades());
             renderOrderFilters(doc);
@@ -994,7 +994,7 @@ public final class MarketIntegration {
         private void renderKline(Document doc, StockInfo stock) {
             Element summary = doc.getElementById("aui-kline-summary");
             if (stock == null) {
-                setText(doc, "aui-kline-summary", "未选择股票");
+                setText(doc, "aui-kline-summary", "未选股票");
                 if (summary != null) summary.setAttribute("class", "kline-summary");
             } else {
                 setText(doc, "aui-kline-summary", "现价 " + MONEY.format(stock.price())
@@ -1184,7 +1184,7 @@ public final class MarketIntegration {
         }
 
         private void setKlineHoverEmpty(Document doc) {
-            setText(doc, "aui-kline-hover-day", "移动鼠标查看该日");
+            setText(doc, "aui-kline-hover-day", "移鼠观当日");
             setText(doc, "aui-kline-hover-open", "—");
             setText(doc, "aui-kline-hover-high", "—");
             setText(doc, "aui-kline-hover-low", "—");

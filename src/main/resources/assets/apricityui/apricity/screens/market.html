@@ -770,59 +770,59 @@
     <main class="market">
         <header class="header">
             <div class="brand">
-                <div class="brand-kicker">食韵筑家Ⅲ · 服务器交易所</div>
+                <div class="brand-kicker">食韵筑家Ⅲ · 市集</div>
                 <div class="title">方寸乾坤</div>
                 <div class="sub">方寸之间 · 涨跌有时 · 行情每 5 秒更迭</div>
             </div>
             <div class="header-tools">
-                <span class="market-status">● 交易中</span>
-                <button class="btn refresh" id="aui-refresh" type="button">刷新</button>
+                <span class="market-status">● 开市</span>
+                <button class="btn refresh" id="aui-refresh" type="button">换新</button>
             </div>
         </header>
 
         <div class="account">
             <div class="account-block">
-                <span class="account-label">可用现金</span>
+                <span class="account-label">余银</span>
                 <b id="aui-cash">—</b>
             </div>
             <div class="account-block">
-                <span class="account-label">持仓市值</span>
+                <span class="account-label">市值</span>
                 <b id="aui-position-value">—</b>
             </div>
             <div class="account-block">
-                <span class="account-label">总资产</span>
+                <span class="account-label">家底</span>
                 <b id="aui-total">—</b>
             </div>
             <div class="account-block">
-                <span class="account-label">当日盈亏</span>
+                <span class="account-label">今日赚赔</span>
                 <b id="aui-daily-pnl">—</b>
             </div>
             <div class="account-block">
-                <span class="account-label">总盈亏</span>
+                <span class="account-label">累计赚赔</span>
                 <b id="aui-total-pnl">—</b>
             </div>
             <div class="account-block">
-                <span class="account-label">当前持仓</span>
+                <span class="account-label">当前持股</span>
                 <b id="aui-holdings">—</b>
             </div>
         </div>
-        <div class="account-detail" id="aui-account-detail">可用现金 — · 冻结资金 — · 可用持仓 — · 冻结持仓 —</div>
+        <div class="account-detail" id="aui-account-detail">余银 — · 冻结银两 — · 可用持股 — · 冻结持股 —</div>
         <div class="market-overview">
-            <span class="market-index">食韵综合指数 <b id="aui-index-summary">—</b> <b id="aui-index-change">—</b></span>
-            <div class="market-news" id="aui-news-list"><span>暂无市场消息</span></div>
+            <span class="market-index">食韵大盘 <b id="aui-index-summary">—</b> <b id="aui-index-change">—</b></span>
+            <div class="market-news" id="aui-news-list"><span>暂无见闻</span></div>
         </div>
 
         <div class="view-tabs">
-            <button class="view-tab active" id="aui-tab-quotes" type="button">行情</button>
-            <button class="view-tab" id="aui-tab-portfolio" type="button">持仓</button>
-            <button class="view-tab" id="aui-tab-orders" type="button">委托</button>
-            <button class="view-tab" id="aui-tab-news" type="button">消息</button>
+            <button class="view-tab active" id="aui-tab-quotes" type="button">市况</button>
+            <button class="view-tab" id="aui-tab-portfolio" type="button">仓单</button>
+            <button class="view-tab" id="aui-tab-orders" type="button">挂单</button>
+            <button class="view-tab" id="aui-tab-news" type="button">见闻</button>
         </div>
 
         <div class="body view-pane active" id="aui-quotes-view">
             <section class="quotes-pane">
                 <div class="pane-heading">
-                    <span>行情簿</span>
+                    <span>行情榜</span>
                     <span class="hint">价格 / 涨跌幅</span>
                 </div>
                 <div class="stock-controls">
@@ -845,13 +845,13 @@
 
             <section class="trade">
                 <div class="trade-head">
-                    <span class="trade-kicker">交易票据</span>
+                    <span class="trade-kicker">买卖券</span>
                     <span id="aui-selected">未选择</span>
                 </div>
 
                 <div class="trade-fields">
                     <div class="trade-row">
-                        <span class="label">数量</span>
+                        <span class="label">股数</span>
                         <span class="stepper">
                             <button id="aui-qty-minus" type="button">−</button>
                             <span class="qty" id="aui-qty">100</span>
@@ -862,7 +862,7 @@
                         <button id="aui-qty-plus-one" type="button">+1</button>
                         <button id="aui-qty-plus-ten" type="button">+10</button>
                         <button id="aui-qty-plus-hundred" type="button">+100</button>
-                        <button id="aui-sell-all" type="button">持仓全部</button>
+                        <button id="aui-sell-all" type="button">持股全部</button>
                     </div>
                     <div class="trade-row">
                         <span class="label">限价</span>
@@ -873,21 +873,21 @@
                         </span>
                     </div>
                     <div class="estimate">
-                        <span class="label">预估金额</span>
+                        <span class="label">约计银两</span>
                         <span id="aui-estimate">—</span>
                     </div>
                     <div class="trade-hint" id="aui-trade-hint">交易按钮需再次点击确认</div>
                 </div>
 
                 <div class="action-group">
-                    <span class="action-caption">市价交易</span>
+                    <span class="action-caption">现价买卖</span>
                     <div class="actions">
                         <button class="btn buy" id="aui-buy" type="button">买入</button>
                         <button class="btn sell" id="aui-sell" type="button">卖出</button>
                     </div>
                 </div>
                 <div class="action-group">
-                    <span class="action-caption">限价委托</span>
+                    <span class="action-caption">挂单定价</span>
                     <div class="actions">
                         <button class="btn limit-buy" id="aui-limit-buy" type="button">限价买入</button>
                         <button class="btn limit-sell" id="aui-limit-sell" type="button">限价卖出</button>
@@ -898,14 +898,14 @@
 
         <section class="portfolio-view view-pane" id="aui-portfolio-view">
             <div class="page-heading">
-                <span>持仓总览</span>
-                <span class="hint" id="aui-portfolio-hint">点击股票可直接进入交易</span>
+                <span>仓廪</span>
+                <span class="hint" id="aui-portfolio-hint">点选即可入市</span>
             </div>
             <div class="portfolio-summary">
-                <div class="portfolio-stat"><span>持仓市值</span><b id="aui-portfolio-value">—</b></div>
-                <div class="portfolio-stat"><span>浮动盈亏</span><b id="aui-unrealized-pnl">—</b></div>
-                <div class="portfolio-stat"><span>已实现盈亏</span><b id="aui-realized-pnl">—</b></div>
-                <div class="portfolio-stat"><span>当日盈亏</span><b id="aui-portfolio-daily-pnl">—</b></div>
+                <div class="portfolio-stat"><span>市值</span><b id="aui-portfolio-value">—</b></div>
+                <div class="portfolio-stat"><span>账面赚赔</span><b id="aui-unrealized-pnl">—</b></div>
+                <div class="portfolio-stat"><span>落袋赚赔</span><b id="aui-realized-pnl">—</b></div>
+                <div class="portfolio-stat"><span>今日赚赔</span><b id="aui-portfolio-daily-pnl">—</b></div>
             </div>
             <div class="portfolio-toolbar">
                 <div class="portfolio-sort">
@@ -915,7 +915,7 @@
                     <button id="aui-portfolio-sort-value" type="button">市值</button>
                     <button id="aui-portfolio-sort-change" type="button">涨跌幅</button>
                 </div>
-                <button class="batch-button danger" id="aui-sell-all-holdings" type="button">卖出全部可用持仓</button>
+                <button class="batch-button danger" id="aui-sell-all-holdings" type="button">清仓出货</button>
             </div>
             <div class="portfolio-list-head">
                 <span class="portfolio-cell-name">股票</span>
@@ -933,26 +933,26 @@
 
         <section class="orders-view view-pane" id="aui-orders-view">
             <div class="page-heading">
-                <span>委托管理</span>
-                <span class="hint">未成交委托可随时撤回</span>
+                <span>挂单薄</span>
+                <span class="hint">未成之单可随时撤回</span>
             </div>
             <div class="order-filters">
                 <button class="order-filter active" id="aui-order-filter-all" type="button">全部</button>
                 <button class="order-filter" id="aui-order-filter-buy" type="button">买入</button>
                 <button class="order-filter" id="aui-order-filter-sell" type="button">卖出</button>
                 <span class="spacer"></span>
-                <button class="batch-button" id="aui-cancel-all-orders" type="button">撤销全部委托</button>
+                <button class="batch-button" id="aui-cancel-all-orders" type="button">尽数撤单</button>
             </div>
-            <div class="order-section-title">当前委托</div>
+            <div class="order-section-title">待成之单</div>
             <div class="orders-page-list" id="aui-orders-page"></div>
-            <div class="order-section-title">最近成交</div>
+            <div class="order-section-title">已成交单</div>
             <div class="trade-history-list" id="aui-trade-history"></div>
         </section>
 
         <section class="news-view view-pane" id="aui-news-view">
             <div class="page-heading">
-                <span>市场消息</span>
-                <span class="hint" id="aui-news-hint">按时间倒序 · 最新消息在上</span>
+                <span>市井见闻</span>
+                <span class="hint" id="aui-news-hint">按时间倒序 · 最新见闻在上</span>
             </div>
             <div class="news-page-list" id="aui-news-page"></div>
         </section>
@@ -962,18 +962,18 @@
             <div class="kline">
                 <div class="kline-heading">
                     <div class="kline-label">
-                        <span>价格走势</span>
-                        <span class="kline-note">近 40 交易日 · 红涨绿跌</span>
+                        <span>价目走势</span>
+                        <span class="kline-note">近 40 交易日 · 涨红跌绿</span>
                     </div>
                     <div class="kline-tools">
-                        <span class="kline-summary" id="aui-kline-summary">选择股票查看走势</span>
+                        <span class="kline-summary" id="aui-kline-summary">点选股票观走势</span>
                         <button class="kline-toggle active" id="aui-kline-ma5" type="button">MA5</button>
                         <button class="kline-toggle active" id="aui-kline-ma10" type="button">MA10</button>
                         <button class="kline-toggle active" id="aui-kline-volume" type="button">量</button>
                     </div>
                 </div>
                 <div class="kline-hover" id="aui-kline-hover">
-                    <span class="kline-hover-day" id="aui-kline-hover-day">移动鼠标查看该日</span>
+                    <span class="kline-hover-day" id="aui-kline-hover-day">移鼠观当日</span>
                     <span class="kline-hover-field kline-hover-open">开 <b class="kline-hover-value" id="aui-kline-hover-open">—</b></span>
                     <span class="kline-hover-field kline-hover-high">高 <b class="kline-hover-value" id="aui-kline-hover-high">—</b></span>
                     <span class="kline-hover-field kline-hover-low">低 <b class="kline-hover-value" id="aui-kline-hover-low">—</b></span>
@@ -984,7 +984,7 @@
                 <canvas id="aui-kline" width="1200" height="300"></canvas>
             </div>
         </section>
-        <div class="foot">按 Esc 关闭</div>
+        <div class="foot">按 Esc 退去</div>
     </main>
 </body>
 </html>
