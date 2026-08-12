@@ -525,14 +525,7 @@ public final class MarketService {
 
         if (random.nextDouble() < Config.NEWS_EVENT_PROBABILITY.get()) {
             Stock stock = candidates.get(random.nextInt(candidates.size()));
-            double impact = (random.nextDouble() * 2.0 - 1.0) * Config.NEWS_IMPACT_MAX.get();
-            double before = stock.price();
-            updatePrice(stock, PriceModel.round(before * (1.0 + impact)));
-            savedData.addNews(day, stock.id(), stock.industry(), "NEWS",
-                    stock.industry() + "板块风起",
-                    (impact >= 0 ? "坊间风传利好，" : "坊间风传利空，") + stock.name() + "股价应声而变",
-                    impact * 100.0);
-            matchOrders(stock, server);
+            triggerPriceNews(server, day, stock);
         }
 
         if (random.nextDouble() < Config.DIVIDEND_PROBABILITY.get()) {
@@ -574,11 +567,75 @@ public final class MarketService {
         currentIndexValue = calculateIndexValue();
     }
 
+    /**
+     * 价格驱动新闻池：每个周期按类型随机抽取一条事件直接改变股价。
+     * 统一复用 NEWS_EVENT_PROBABILITY 作为触发概率，NEWS_IMPACT_MAX 作为幅度基准。
+     */
+    private void triggerPriceNews(MinecraftServer server, long day, Stock stock) {
+        double max = Config.NEWS_IMPACT_MAX.get();
+        double before = stock.price();
+        String type;
+        String title;
+        String detail;
+        double impact;
+        switch (random.nextInt(7)) {
+            case 0 -> {
+                type = "NEWS";
+                impact = (random.nextDouble() * 2.0 - 1.0) * max;
+                title = stock.industry() + "板块风起";
+                detail = (impact >= 0 ? "坊间风传利好，" : "坊间风传利空，") + stock.name() + "股价应声而变";
+            }
+            case 1 -> {
+                type = "RATING";
+                boolean up = random.nextBoolean();
+                impact = (up ? 1 : -1) * (0.3 + random.nextDouble() * 0.3) * max;
+                title = stock.name() + (up ? "获评级调升" : "遭评级调降");
+                detail = up ? "机构调升投资评级，市场看多后市" : "机构下调投资评级，市场看空后市";
+            }
+            case 2 -> {
+                type = "BUYBACK";
+                impact = (0.4 + random.nextDouble() * 0.4) * max;
+                title = stock.name() + "回购股份";
+                detail = "公司斥资回购流通股，市场信心回暖";
+            }
+            case 3 -> {
+                type = "ISSUE";
+                impact = -(0.4 + random.nextDouble() * 0.4) * max;
+                title = stock.name() + "增发配股";
+                detail = "公司定向增发新股，流通盘扩大";
+            }
+            case 4 -> {
+                type = "EARNINGS";
+                boolean beat = random.nextBoolean();
+                impact = (beat ? 1 : -1) * (1.0 + random.nextDouble() * 0.8) * max;
+                title = stock.name() + "财报披露";
+                detail = beat ? "本期业绩远超预期，市场一片叫好" : "本期业绩不及预期，市场一片哀鸿";
+            }
+            case 5 -> {
+                type = "POLICY";
+                boolean support = random.nextBoolean();
+                impact = (support ? 1 : -1) * (0.6 + random.nextDouble() * 0.4) * max;
+                title = (support ? "政策扶持" : "监管重罚") + stock.industry();
+                detail = support ? "出台扶持政策，行业景气度提升" : "行业遭遇监管重罚，前景蒙尘";
+            }
+            default -> {
+                type = "CONTRACT";
+                impact = (0.5 + random.nextDouble() * 0.4) * max;
+                title = stock.name() + "签下重大订单";
+                detail = "斩获长期大额订单，营收预期向好";
+            }
+        }
+        updatePrice(stock, PriceModel.round(before * (1.0 + impact)));
+        savedData.addNews(day, stock.id(), stock.industry(), type, title, detail, impact * 100.0);
+        matchOrders(stock, server);
+    }
+
     private void applyPendingCorporateActions(MinecraftServer server, long throughId) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             applyPendingCorporateActions(player, throughId);
         }
     }
+
 
     /** Applies missed dividends/splits to a player who was offline during an event. */
     public void applyPendingCorporateActions(ServerPlayer player) {

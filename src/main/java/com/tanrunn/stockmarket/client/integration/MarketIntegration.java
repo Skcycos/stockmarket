@@ -536,6 +536,12 @@ public final class MarketIntegration {
                 case "DIVIDEND" -> "分红喜报";
                 case "SPLIT" -> "拆股公告";
                 case "HALT" -> "停牌通告";
+                case "RATING" -> "评级风云";
+                case "BUYBACK" -> "回购喜报";
+                case "ISSUE" -> "增发公告";
+                case "EARNINGS" -> "财报披露";
+                case "POLICY" -> "政策风向";
+                case "CONTRACT" -> "订单捷报";
                 default -> "市井见闻";
             };
         }
