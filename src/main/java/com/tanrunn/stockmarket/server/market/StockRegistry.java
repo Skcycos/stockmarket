@@ -55,6 +55,12 @@ public final class StockRegistry {
         add(stocks, "liuyun", "流云商贸", 15.30, 0.0002, 0.024, "商贸");
         add(stocks, "qingyun", "青云科技", 45.80, 0.0005, 0.042, "科技");
         add(stocks, "songzhu", "松竹银行", 31.20, 0.0000, 0.010, "金融");
+        add(stocks, "qingpu", "青圃农产", 6.80, 0.0001, 0.016, "农业");
+        add(stocks, "muge", "牧歌畜产", 18.40, 0.0001, 0.018, "畜牧");
+        add(stocks, "chunshan", "春山茶业", 26.90, 0.0002, 0.020, "饮品");
+        add(stocks, "wanwu", "万物集市", 21.50, 0.0001, 0.018, "零售");
+        add(stocks, "muyu", "木语家居", 33.70, 0.0001, 0.016, "家居");
+        add(stocks, "yilu", "驿路物流", 11.30, 0.0001, 0.020, "物流");
         return stocks;
     }
 
