@@ -433,19 +433,21 @@ public final class MarketIntegration {
                 }
                 return;
             }
-            if (existing.size() != 1) {
-                for (Element child : existing) list.removeChild(child);
-                existing.clear();
-            }
             MarketNews item = items.get(0);
-            Element row = existing.isEmpty() ? doc.createElement("div") : existing.get(0);
-            if (existing.isEmpty()) {
+            Element row = existing.isEmpty() ? null : existing.get(0);
+            if (row == null || !"news-row".equals(row.getAttribute("class"))) {
+                if (row != null) list.removeChild(row);
+                row = doc.createElement("div");
                 row.setAttribute("class", "news-row");
                 row.appendChild(doc.createElement("span"));
                 row.appendChild(doc.createElement("span"));
                 list.appendChild(row);
             }
             List<Element> cells = new ArrayList<>(row.getChildren());
+            while (cells.size() < 2) {
+                row.appendChild(doc.createElement("span"));
+                cells = new ArrayList<>(row.getChildren());
+            }
             cells.get(0).setTextContent(item.title());
             cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
         }
