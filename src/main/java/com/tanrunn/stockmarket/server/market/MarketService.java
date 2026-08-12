@@ -352,7 +352,7 @@ public final class MarketService {
                 reservedCostBasis, reservedCash);
         NeoForge.EVENT_BUS.post(new OrderEvent(player, OrderEvent.Type.PLACED, orderId, stockId, buy,
                 cents(price), quantity));
-        // 挂单后立刻尝试撮合一次（可能价格已经越过限价）
+        // 挂单后立刻尝试撮合一次（可能挂单价已经越过/触及当前市价）
         matchOrders(stock, player.server);
         return new LimitOrderPlacement(true, (buy ? "已挂买单 #" : "已挂卖单 #") + orderId,
                 result.account(), orderId);
