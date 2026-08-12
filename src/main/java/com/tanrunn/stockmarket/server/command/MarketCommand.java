@@ -105,10 +105,10 @@ public final class MarketCommand {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         var info = MarketService.get().accountInfo(player);
         StringBuilder sb = new StringBuilder("§e=== 我的账户 ===");
-        sb.append("\n§6现金§r：").append(MONEY.format(info.cash()));
-        sb.append("  §6总资产§r：").append(MONEY.format(info.totalValue()));
+        sb.append("\n§6余银§r：").append(MONEY.format(info.cash()));
+        sb.append("  §6家底§r：").append(MONEY.format(info.totalValue()));
         if (!info.holdings().isEmpty()) {
-            sb.append("\n§7持仓§r：");
+            sb.append("\n§7持股§r：");
             info.holdings().forEach((id, qty) -> {
                 Stock stock = MarketService.get().stock(id);
                 String name = stock != null ? stock.name() : id;
@@ -163,10 +163,10 @@ public final class MarketCommand {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         var orders = MarketService.get().accountInfo(player).orders();
         if (orders.isEmpty()) {
-            ctx.getSource().sendSuccess(() -> Component.literal("§7暂无委托"), false);
+            ctx.getSource().sendSuccess(() -> Component.literal("§7暂无挂单"), false);
             return 1;
         }
-        StringBuilder sb = new StringBuilder("§e=== 我的委托 ===");
+        StringBuilder sb = new StringBuilder("§e=== 我的挂单 ===");
         for (var order : orders) {
             sb.append("\n§f#").append(order.orderId())
                     .append(" ").append(order.buy() ? "§a买" : "§c卖")

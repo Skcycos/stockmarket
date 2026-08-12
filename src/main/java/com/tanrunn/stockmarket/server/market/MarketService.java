@@ -220,7 +220,7 @@ public final class MarketService {
     public List<MarketIndexInfo> indices() {
         double value = currentIndexValue > 0 ? currentIndexValue : calculateIndexValue();
         double change = previousIndexValue <= 0 ? 0 : (value - previousIndexValue) / previousIndexValue * 100.0;
-        return List.of(new MarketIndexInfo("market", "食韵综合指数", value, change));
+        return List.of(new MarketIndexInfo("market", "食韵大盘", value, change));
     }
 
     public List<MarketNews> news() {
@@ -292,7 +292,7 @@ public final class MarketService {
             return new TradeEngine.Result(false, "未知股票：" + stockId, null, 0);
         }
         if (stock.halted()) {
-            return new TradeEngine.Result(false, "股票停牌中，暂不可交易：" + stock.name(), null, 0);
+            return new TradeEngine.Result(false, "股票停市中，暂不可交易：" + stock.name(), null, 0);
         }
         HoldingAccount account = normalizedAccount(player);
         TradeEngine.Result result = buy
@@ -336,7 +336,7 @@ public final class MarketService {
             return new LimitOrderPlacement(false, "未知股票：" + stockId, null, -1);
         }
         if (stock.halted()) {
-            return new LimitOrderPlacement(false, "股票停牌中，暂不可挂单：" + stock.name(), null, -1);
+            return new LimitOrderPlacement(false, "股票停市中，暂不可挂单：" + stock.name(), null, -1);
         }
         HoldingAccount account = normalizedAccount(player);
         double reservedCostBasis = buy ? 0 : TradeEngine.costBasisForSale(account, stockId, quantity);
@@ -402,7 +402,7 @@ public final class MarketService {
                 account = result.account();
             }
         }
-        return new TradeEngine.Result(true, "已撤销 " + cancelled + " 笔委托", account, 0);
+        return new TradeEngine.Result(true, "已撤 " + cancelled + " 笔挂单", account, 0);
     }
 
     /** Sells all currently available holdings, chunking large positions by MAX_ORDER_QTY. */
@@ -429,9 +429,9 @@ public final class MarketService {
         }
         HoldingAccount finalAccount = AccountService.get(player);
         if (soldShares == 0 && blockedStocks > 0) {
-            return new TradeEngine.Result(false, firstError == null ? "没有可卖出的持仓" : firstError, finalAccount, 0);
+            return new TradeEngine.Result(false, firstError == null ? "无可卖持股" : firstError, finalAccount, 0);
         }
-        String message = soldShares == 0 ? "没有可卖出的持仓" : "已卖出可用持仓 " + soldShares + " 股";
+        String message = soldShares == 0 ? "无可卖持股" : "已卖出可用持股 " + soldShares + " 股";
         if (blockedStocks > 0) message += "（部分股票未成交）";
         return new TradeEngine.Result(true, message, finalAccount, 0);
     }
@@ -529,8 +529,8 @@ public final class MarketService {
             double before = stock.price();
             updatePrice(stock, PriceModel.round(before * (1.0 + impact)));
             savedData.addNews(day, stock.id(), stock.industry(), "NEWS",
-                    stock.industry() + "板块出现新消息",
-                    (impact >= 0 ? "市场情绪转暖，" : "市场情绪转弱，") + stock.name() + "价格受到影响",
+                    stock.industry() + "板块风起",
+                    (impact >= 0 ? "坊间风传利好，" : "坊间风传利空，") + stock.name() + "股价应声而变",
                     impact * 100.0);
             matchOrders(stock, server);
         }
@@ -541,8 +541,8 @@ public final class MarketService {
                     1, 1, Config.DIVIDEND_PER_SHARE.get());
             applyPendingCorporateActions(server, action.id());
             savedData.addNews(day, stock.id(), stock.industry(), "DIVIDEND",
-                    stock.name() + "发放分红",
-                    "每股分红 " + String.format("%.2f", action.dividendPerShare()) + "，按持仓股数入账",
+                    stock.name() + "岁末派红",
+                    "每股派红 " + String.format("%.2f", action.dividendPerShare()) + "，按持股数入账",
                     0);
         }
 
@@ -554,8 +554,8 @@ public final class MarketService {
             savedData.orderBook().applySplit(stock.id(), action.numerator(), action.denominator());
             applyPendingCorporateActions(server, action.id());
             savedData.addNews(day, stock.id(), stock.industry(), "SPLIT",
-                    stock.name() + "进行拆股",
-                    "按 " + action.numerator() + ":" + action.denominator() + " 拆分，持仓股数同步调整",
+                    stock.name() + "拆股开新",
+                    "按 " + action.numerator() + ":" + action.denominator() + " 拆分，持股数同步调整",
                     0);
         }
 
@@ -566,8 +566,8 @@ public final class MarketService {
             MarketSavedData.CorporateAction action = savedData.addCorporateAction(day, stock.id(), "HALT",
                     1, 1, duration);
             savedData.addNews(day, stock.id(), stock.industry(), "HALT",
-                    stock.name() + "临时停牌",
-                    "预计停牌 " + duration + " 个市场周期，期间不可交易",
+                    stock.name() + "临时停市",
+                    "预计停市 " + duration + " 个市场周期，其间不可交易",
                     0);
             applyPendingCorporateActions(server, action.id());
         }
