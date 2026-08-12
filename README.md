@@ -20,12 +20,17 @@
 
 - 行情列表、当前价格、涨跌幅和成交量
 - 现金、总资产、可用资金、持仓市值和持仓盈亏
+- 持仓明细中的成本价、当前市值、当日盈亏、持仓盈亏和盈亏百分比
+- 持仓按盈亏、市值和涨跌幅排序
+- 一键卖出全部可用持仓、快速撤销全部委托（均需二次确认）
 - 市价买入与卖出
 - 限价买入、限价卖出和撤单
 - 委托资金与持仓预留，撤单后按分精确退回
 - 订单、成交和账户数据持久化
 - 玩家离线时限价单保留，重新上线后继续尝试撮合
 - 市场总开关、单笔数量上限、价格和资金的服务端校验
+- 行业分类、食韵综合指数、公司新闻和事件提示
+- 分红、拆股、临时停牌，事件对离线账户上线后补算
 
 ### K 线与 UI
 
@@ -101,20 +106,21 @@ build/libs/stockmarket-1.0.0.jar
 
 股票定义位于 `src/main/resources/data/stockmarket/stocks/`：
 
-| ID | 名称 | 初始价格 |
-| --- | --- | ---: |
-| `songzhu` | 松竹银行 | 31.20 |
-| `zhujia` | 筑家建设 | 8.20 |
-| `yanhuo` | 烟火食铺 | 12.50 |
-| `liuyun` | 流云商贸 | 15.30 |
-| `changg` | 长歌矿业 | 23.60 |
-| `qingyun` | 青云科技 | 45.80 |
+| ID | 名称 | 行业 | 初始价格 |
+| --- | --- | --- | ---: |
+| `songzhu` | 松竹银行 | 金融 | 31.20 |
+| `zhujia` | 筑家建设 | 建设 | 8.20 |
+| `yanhuo` | 烟火食铺 | 消费 | 12.50 |
+| `liuyun` | 流云商贸 | 商贸 | 15.30 |
+| `changg` | 长歌矿业 | 资源 | 23.60 |
+| `qingyun` | 青云科技 | 科技 | 45.80 |
 
 股票 JSON 支持以下字段：
 
 ```json
 {
   "name": "示例公司",
+  "industry": "科技",
   "initialPrice": 10.00,
   "drift": 0.000002,
   "volatility": 0.006
@@ -138,6 +144,15 @@ config/stockmarket-common.toml
 | `feeRate` | `0.001` | 交易手续费率，`0.001` 为 0.1% |
 | `tickInterval` | `100` | 行情更新间隔，100 tick 约为 5 秒 |
 | `maxOrderQty` | `9999` | 单笔委托最大数量 |
+| `marketCycleTicks` | `24000` | 市场周期长度，默认等于一个 Minecraft 日 |
+| `newsEventProbability` | `0.25` | 每个周期生成公司新闻的概率 |
+| `dividendProbability` | `0.04` | 每个周期触发分红的概率 |
+| `splitProbability` | `0.01` | 每个周期触发 2:1 拆股的概率 |
+| `haltProbability` | `0.015` | 每个周期触发临时停牌的概率 |
+| `haltDurationCycles` | `1` | 临时停牌持续周期数 |
+| `dividendPerShare` | `0.05` | 每股分红金额 |
+| `indexBaseValue` | `1000.0` | 食韵综合指数基准值 |
+| `newsImpactMax` | `0.08` | 公司新闻对价格的最大相对影响 |
 
 所有交易入口都会经过服务端门禁。客户端网络请求、命令和跨 Mod API 不能绕过关闭状态、数量上限、价格、现金或持仓校验。
 
@@ -155,7 +170,9 @@ com.tanrunn.stockmarket.api.StockMarketApi
 - `requestId` 幂等请求
 - 账户、持仓盈亏、订单和成交查询
 - 股票行情和历史 K 线查询
+- 行业分类、食韵综合指数和最近市场新闻查询（`StockMarketApi.stocks()`、`indices()`、`news()`）
 - 市价交易、限价委托和撤单
+- `sellAllHoldings()` 一键卖出可用持仓、`cancelAllOrders()` 批量撤销本人委托
 - 余额变更、委托、成交、价格变化事件
 - 外部货币桥接
 

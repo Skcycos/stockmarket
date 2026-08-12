@@ -206,4 +206,15 @@ class OrderBookTest {
         assertEquals(0, dirtyCount[0], "a declined fill changes nothing");
         assertEquals(1, book.size());
     }
+
+    @Test
+    void splitRepricesAndResizesOrdersWithoutChangingReservedBasis() {
+        OrderBook book = new OrderBook();
+        long id = book.place(PLAYER, "aaa", false, 20.0, 10, 100.0);
+        book.applySplit("aaa", 2, 1);
+        OrderBook.Order order = book.get(id);
+        assertEquals(10.0, order.price(), 0.001);
+        assertEquals(20, order.quantity());
+        assertEquals(100.0, order.reservedCostBasis(), 0.001);
+    }
 }

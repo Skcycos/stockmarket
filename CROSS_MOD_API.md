@@ -1,7 +1,7 @@
 # StockMarket 跨 Mod API
 
 StockMarket 提供稳定的服务端 Java API，供任务、商店、NPC、活动和经济类 Mod 快速接入。
-公共入口是 `com.tanrunn.stockmarket.api.StockMarketApi`。调用方不应直接操作
+公共入口是 `com.tanrunn.stockmarket.api.StockMarketApi`，当前 `API_VERSION` 为 `2`。调用方不应直接操作
 `AccountData`、`OrderBook` 或 `TradeEngine`。
 
 ## 账户入金与出金
@@ -33,6 +33,8 @@ var quote = StockMarketApi.quote("qingyun");
 var account = StockMarketApi.account(player);
 var orders = StockMarketApi.orders(player);
 var trades = StockMarketApi.trades(player);
+var indices = StockMarketApi.indices();
+var news = StockMarketApi.news();
 ```
 
 `StockQuote` 和 `AccountSnapshot` 的金额字段均为分。行情历史使用 API 自己的
@@ -45,9 +47,18 @@ var trades = StockMarketApi.trades(player);
 var market = StockMarketApi.marketOrder(player, "qingyun", true, 10);
 var limit = StockMarketApi.limitOrder(player, "qingyun", true, 4_580L, 10);
 var cancel = StockMarketApi.cancelOrder(player, limit.orderId());
+var liquidate = StockMarketApi.sellAllHoldings(player);
+var cancelAll = StockMarketApi.cancelAllOrders(player);
 ```
 
-这些调用复用服务端已有的开关、数量、价格、现金、持仓和订单归属校验；客户端不能绕过这些校验。
+这些调用复用服务端已有的开关、数量、价格、现金、持仓、停牌和订单归属校验；客户端不能绕过这些校验。
+
+`sellAllHoldings` 只卖出未被限价卖单冻结的可用持仓，并自动按服务器的单笔数量上限分批成交。
+`cancelAllOrders` 只撤销当前玩家自己的委托，并逐笔退还预留资金或持仓。
+
+`StockQuote` 额外提供 `industry`、`halted` 和 `haltRemainingCycles`；停牌股票仍可查询行情，
+但市价单和限价单会被服务端拒绝。`indices()` 返回当前综合指数，`news()` 返回最近的公司新闻、
+分红、拆股和停牌提示。
 
 ## 事件
 

@@ -45,6 +45,8 @@ public final class AccountService {
         data.realizedPnl = 0;
         data.dailyBaselineDay = Long.MIN_VALUE;
         data.dailyBaselineValue = 0;
+        MarketService service = MarketService.get();
+        data.lastCorporateActionId = service == null ? 0 : service.latestCorporateActionId();
         data.trades.clear();
         data.ledger.clear();
         player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);

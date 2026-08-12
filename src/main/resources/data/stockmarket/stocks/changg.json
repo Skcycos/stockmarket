@@ -1,1 +1,1 @@
-{ "name": "长歌矿业", "initialPrice": 23.60, "drift": 0.000003, "volatility": 0.0070 }
+{ "name": "长歌矿业", "industry": "资源", "initialPrice": 23.60, "drift": 0.000003, "volatility": 0.0070 }

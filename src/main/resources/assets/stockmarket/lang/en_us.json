@@ -8,5 +8,14 @@
   "stockmarket.configuration.initialCash": "Initial Cash",
   "stockmarket.configuration.feeRate": "Fee Rate",
   "stockmarket.configuration.tickInterval": "Market Tick Interval",
-  "stockmarket.configuration.maxOrderQty": "Max Order Quantity"
+  "stockmarket.configuration.maxOrderQty": "Max Order Quantity",
+  "stockmarket.configuration.marketCycleTicks": "Market Cycle Length (ticks)",
+  "stockmarket.configuration.newsEventProbability": "Company News Probability",
+  "stockmarket.configuration.dividendProbability": "Dividend Probability",
+  "stockmarket.configuration.splitProbability": "Split Probability",
+  "stockmarket.configuration.haltProbability": "Trading Halt Probability",
+  "stockmarket.configuration.haltDurationCycles": "Halt Duration (cycles)",
+  "stockmarket.configuration.dividendPerShare": "Dividend Per Share",
+  "stockmarket.configuration.indexBaseValue": "Index Base Value",
+  "stockmarket.configuration.newsImpactMax": "Maximum News Impact"
 }

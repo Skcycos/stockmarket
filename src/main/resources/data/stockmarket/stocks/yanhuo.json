@@ -1,1 +1,1 @@
-{ "name": "烟火食铺", "initialPrice": 12.50, "drift": 0.000002, "volatility": 0.0060 }
+{ "name": "烟火食铺", "industry": "消费", "initialPrice": 12.50, "drift": 0.000002, "volatility": 0.0060 }

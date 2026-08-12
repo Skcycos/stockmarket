@@ -1,9 +1,11 @@
 package com.tanrunn.stockmarket.server.network;
 
 import com.tanrunn.stockmarket.common.network.CancelOrderRequestC2S;
+import com.tanrunn.stockmarket.common.network.CancelAllOrdersRequestC2S;
 import com.tanrunn.stockmarket.common.network.LimitOrderRequestC2S;
 import com.tanrunn.stockmarket.common.network.MarketRequestC2S;
 import com.tanrunn.stockmarket.common.network.TradeRequestC2S;
+import com.tanrunn.stockmarket.common.network.SellAllHoldingsRequestC2S;
 import com.tanrunn.stockmarket.server.market.MarketService;
 import com.tanrunn.stockmarket.server.market.TradeEngine;
 import net.minecraft.server.level.ServerPlayer;
@@ -61,6 +63,26 @@ public final class ServerPayloadHandler {
                 // MarketService.cancelOrder 校验订单存在且属于该玩家；
                 // 股市关闭期间也允许撤单退款（资金回收不锁死）。
                 TradeEngine.Result result = MarketService.get().cancelOrder(player, payload.orderId());
+                MarketService.get().sendSnapshot(player, false, result.message());
+            }
+        });
+    }
+
+    public static void handle(CancelAllOrdersRequestC2S payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.flow().isServerbound() && context.player() instanceof ServerPlayer player
+                    && MarketService.get() != null) {
+                TradeEngine.Result result = MarketService.get().cancelAllOrders(player);
+                MarketService.get().sendSnapshot(player, false, result.message());
+            }
+        });
+    }
+
+    public static void handle(SellAllHoldingsRequestC2S payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.flow().isServerbound() && context.player() instanceof ServerPlayer player
+                    && MarketService.get() != null) {
+                TradeEngine.Result result = MarketService.get().sellAllHoldings(player);
                 MarketService.get().sendSnapshot(player, false, result.message());
             }
         });

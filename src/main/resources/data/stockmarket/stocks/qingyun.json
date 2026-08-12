@@ -1,1 +1,1 @@
-{ "name": "青云科技", "initialPrice": 45.80, "drift": 0.000004, "volatility": 0.0075 }
+{ "name": "青云科技", "industry": "科技", "initialPrice": 45.80, "drift": 0.000004, "volatility": 0.0075 }

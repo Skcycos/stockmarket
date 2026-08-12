@@ -7,6 +7,7 @@
 ```json
 {
   "name": "烟火食铺",
+  "industry": "消费",
   "initialPrice": 12.50,
   "drift": 0.0002,
   "volatility": 0.020
@@ -15,9 +16,13 @@
 
 - 文件名 = 股票 id（小写英文，如 `yanhuo.json` → id `yanhuo`）
 - `name`：显示名（中文）
+- `industry`：行业分类，用于持仓和新闻展示
 - `initialPrice`：初始/基准价
 - `drift`：每步漂移（正=长期看涨，负=看跌）
 - `volatility`：每步波动率（越大越刺激，建议 0.01~0.05）
+
+市场每个 `marketCycleTicks` 到达周期边界时，可以按配置概率触发公司新闻、分红、拆股和临时停牌。
+这些事件会写入世界 SavedData；分红和拆股会对离线玩家在下次上线时补发/补算。
 
 价格每 `tickInterval`（默认 100 tick ≈ 5 秒）更新一次：`price *= exp(drift + vol * 高斯噪声)`，四舍五入到分。
 

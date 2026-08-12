@@ -18,7 +18,7 @@ import java.util.List;
  * Persistent per-player stock account, stored as a player attachment.
  */
 public class AccountData implements INBTSerializable<CompoundTag> {
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
 
     public int schemaVersion = SCHEMA_VERSION;
     public boolean initialized = false;
@@ -31,6 +31,8 @@ public class AccountData implements INBTSerializable<CompoundTag> {
     /** Equity snapshot at the start of the current in-game day. */
     public long dailyBaselineDay = Long.MIN_VALUE;
     public double dailyBaselineValue = 0;
+    /** Highest persisted corporate-action id already applied to this account. */
+    public long lastCorporateActionId = 0;
     public List<TradeInfo> trades = new ArrayList<>();
     /** Cross-Mod cash deposits/withdrawals, retained for audit and idempotency. */
     public List<TransactionRecord> ledger = new ArrayList<>();
@@ -60,6 +62,7 @@ public class AccountData implements INBTSerializable<CompoundTag> {
         tag.putDouble("realizedPnl", realizedPnl);
         tag.putLong("dailyBaselineDay", dailyBaselineDay);
         tag.putDouble("dailyBaselineValue", dailyBaselineValue);
+        tag.putLong("lastCorporateActionId", lastCorporateActionId);
         ListTag tradeList = new ListTag();
         for (TradeInfo trade : trades) {
             CompoundTag entry = new CompoundTag();
@@ -109,6 +112,8 @@ public class AccountData implements INBTSerializable<CompoundTag> {
         dailyBaselineDay = tag.contains("dailyBaselineDay", Tag.TAG_ANY_NUMERIC)
                 ? tag.getLong("dailyBaselineDay") : Long.MIN_VALUE;
         dailyBaselineValue = tag.getDouble("dailyBaselineValue");
+        lastCorporateActionId = tag.contains("lastCorporateActionId", Tag.TAG_ANY_NUMERIC)
+                ? tag.getLong("lastCorporateActionId") : 0;
         schemaVersion = SCHEMA_VERSION;
         trades.clear();
         ListTag tradeList = tag.getList("trades", Tag.TAG_COMPOUND);

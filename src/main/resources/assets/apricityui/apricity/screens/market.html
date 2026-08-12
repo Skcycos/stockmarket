@@ -145,6 +145,25 @@
             text-overflow: ellipsis;
         }
 
+        .market-overview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 28px;
+            padding: 5px 15px;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .market-index { flex: none; color: var(--gold); }
+        .market-index b { margin-left: 4px; }
+        .market-news { display: flex; flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
+        .news-row { display: flex; min-width: 0; gap: 5px; white-space: nowrap; overflow: hidden; }
+        .news-row span:first-child { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+        .news-row span:last-child { color: var(--muted-deep); overflow: hidden; text-overflow: ellipsis; }
+
         .view-tabs {
             display: flex;
             gap: 4px;
@@ -280,6 +299,31 @@
         .portfolio-stat span { display: block; color: var(--muted); font-size: 10px; }
         .portfolio-stat b { display: block; margin-top: 4px; color: var(--ink); font-size: 14px; }
 
+        .portfolio-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 0 7px;
+        }
+
+        .portfolio-sort { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 10px; }
+        .portfolio-sort button,
+        .batch-button {
+            padding: 4px 7px;
+            border: 1px solid var(--line-soft);
+            border-radius: 3px;
+            background: transparent;
+            color: var(--muted);
+            font: inherit;
+            font-size: 10px;
+        }
+        .portfolio-sort button.active,
+        .portfolio-sort button:hover { border-color: var(--gold); color: var(--gold); background: var(--selected); }
+        .batch-button { color: var(--gold); }
+        .batch-button.danger { color: var(--cancel-ink); border-color: var(--cancel-line); }
+        .batch-button:hover { border-color: var(--gold); background: var(--selected); }
+
         .portfolio-list-head,
         .portfolio-row {
             display: flex;
@@ -344,9 +388,12 @@
 
         .order-filters {
             display: flex;
+            align-items: center;
             gap: 5px;
             padding: 9px 0 4px;
         }
+
+        .order-filters .spacer { flex: 1; }
 
         .order-filter {
             padding: 4px 9px;
@@ -762,6 +809,10 @@
             </div>
         </div>
         <div class="account-detail" id="aui-account-detail">可用现金 — · 冻结资金 — · 可用持仓 — · 冻结持仓 —</div>
+        <div class="market-overview">
+            <span class="market-index">食韵综合指数 <b id="aui-index-summary">—</b> <b id="aui-index-change">—</b></span>
+            <div class="market-news" id="aui-news-list"><span>暂无市场消息</span></div>
+        </div>
 
         <div class="orders">
             <span class="orders-label">我的委托</span>
@@ -862,9 +913,20 @@
                 <div class="portfolio-stat"><span>已实现盈亏</span><b id="aui-realized-pnl">—</b></div>
                 <div class="portfolio-stat"><span>当日盈亏</span><b id="aui-portfolio-daily-pnl">—</b></div>
             </div>
+            <div class="portfolio-toolbar">
+                <div class="portfolio-sort">
+                    <span>排序</span>
+                    <button class="active" id="aui-portfolio-sort-default" type="button">默认</button>
+                    <button id="aui-portfolio-sort-pnl" type="button">盈亏</button>
+                    <button id="aui-portfolio-sort-value" type="button">市值</button>
+                    <button id="aui-portfolio-sort-change" type="button">涨跌幅</button>
+                </div>
+                <button class="batch-button danger" id="aui-sell-all-holdings" type="button">卖出全部可用持仓</button>
+            </div>
             <div class="portfolio-list-head">
                 <span class="portfolio-cell-name">股票</span>
                 <span class="portfolio-cell">数量</span>
+                <span class="portfolio-cell">市值</span>
                 <span class="portfolio-cell">成本价</span>
                 <span class="portfolio-cell">现价</span>
                 <span class="portfolio-cell">当日盈亏</span>
@@ -884,6 +946,8 @@
                 <button class="order-filter active" id="aui-order-filter-all" type="button">全部</button>
                 <button class="order-filter" id="aui-order-filter-buy" type="button">买入</button>
                 <button class="order-filter" id="aui-order-filter-sell" type="button">卖出</button>
+                <span class="spacer"></span>
+                <button class="batch-button" id="aui-cancel-all-orders" type="button">撤销全部委托</button>
             </div>
             <div class="order-section-title">当前委托</div>
             <div class="orders-page-list" id="aui-orders-page"></div>

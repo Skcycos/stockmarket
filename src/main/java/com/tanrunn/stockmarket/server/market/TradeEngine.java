@@ -228,4 +228,27 @@ public final class TradeEngine {
         if (held == quantity) return round2(totalBasis);
         return round2(totalBasis * quantity / held);
     }
+
+    /** Applies a forward split to shares while keeping total acquisition basis unchanged. */
+    public static HoldingAccount applySplit(HoldingAccount account, String stockId,
+                                            int numerator, int denominator) {
+        if (numerator <= 0 || denominator <= 0 || numerator == denominator) return account;
+        int held = account.holdings().getOrDefault(stockId, 0);
+        if (held <= 0) return account;
+        long scaled = (long) held * numerator / denominator;
+        if (scaled <= 0 || scaled > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("split quantity out of range");
+        }
+        Map<String, Integer> holdings = new HashMap<>(account.holdings());
+        holdings.put(stockId, (int) scaled);
+        return new HoldingAccount(account.cash(), holdings, account.costBasis(), account.realizedPnl());
+    }
+
+    /** Credits a cash dividend for a known share count, rounded to cents. */
+    public static HoldingAccount payDividend(HoldingAccount account, int shareCount, double dividendPerShare) {
+        if (shareCount <= 0 || !Double.isFinite(dividendPerShare) || dividendPerShare <= 0) return account;
+        double credit = round2(shareCount * dividendPerShare);
+        return new HoldingAccount(round2(account.cash() + credit), account.holdings(), account.costBasis(),
+                account.realizedPnl());
+    }
 }

@@ -218,4 +218,22 @@ class TradeEngineTest {
         // 75.00 gross - 0.08 fee - 50.00 carrying cost
         assertEquals(24.92, filled.realizedPnl(), 0.0001);
     }
+
+    @Test
+    void splitMultipliesSharesButPreservesTotalCostBasis() {
+        HoldingAccount account = new HoldingAccount(50, Map.of("aaa", 10), Map.of("aaa", 123.45), 2.0);
+        HoldingAccount split = TradeEngine.applySplit(account, "aaa", 2, 1);
+        assertEquals(20, split.holdings().get("aaa"));
+        assertEquals(123.45, split.costBasis().get("aaa"), 0.0001);
+        assertEquals(account.cash(), split.cash(), 0.0001);
+    }
+
+    @Test
+    void dividendCreditsCentsWithoutChangingHoldingsOrBasis() {
+        HoldingAccount account = new HoldingAccount(10, Map.of("aaa", 7), Map.of("aaa", 70.0), 0);
+        HoldingAccount paid = TradeEngine.payDividend(account, 7, 0.05);
+        assertEquals(10.35, paid.cash(), 0.0001);
+        assertEquals(account.holdings(), paid.holdings());
+        assertEquals(account.costBasis(), paid.costBasis());
+    }
 }

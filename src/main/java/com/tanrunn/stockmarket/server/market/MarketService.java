@@ -5,6 +5,8 @@ import com.tanrunn.stockmarket.api.event.OrderEvent;
 import com.tanrunn.stockmarket.api.event.PriceChangedEvent;
 import com.tanrunn.stockmarket.api.event.TradeEvent;
 import com.tanrunn.stockmarket.common.AccountInfo;
+import com.tanrunn.stockmarket.common.MarketIndexInfo;
+import com.tanrunn.stockmarket.common.MarketNews;
 import com.tanrunn.stockmarket.common.OrderInfo;
 import com.tanrunn.stockmarket.common.StockInfo;
 import com.tanrunn.stockmarket.common.TradeInfo;
@@ -36,6 +38,8 @@ public final class MarketService {
     private MarketSavedData savedData;
     private long tickCount;
     private long lastDayIndex = Long.MIN_VALUE;
+    private double previousIndexValue;
+    private double currentIndexValue;
 
     public record LimitOrderPlacement(boolean success, String message, HoldingAccount account, long orderId) {
     }
@@ -51,7 +55,9 @@ public final class MarketService {
         MarketService service = new MarketService();
         service.savedData = MarketSavedData.load(server.overworld());
         service.loadStocks();
-        service.lastDayIndex = server.overworld().getDayTime() / 24000;
+        service.lastDayIndex = service.marketDay(server);
+        service.currentIndexValue = service.calculateIndexValue();
+        service.previousIndexValue = service.currentIndexValue;
         INSTANCE = service;
     }
 
@@ -66,9 +72,14 @@ public final class MarketService {
             long volume = state != null ? state.volume() : 0;
             java.util.List<com.tanrunn.stockmarket.common.Candle> history =
                     state != null ? state.history() : seedHistory(def);
-            stocks.put(def.id(), new Stock(def.id(), def.name(), def.initialPrice(), def.drift(), def.volatility(),
-                    price, open, prev, high, low, volume, history));
+            Stock stock = new Stock(def.id(), def.name(), def.initialPrice(), def.drift(), def.volatility(),
+                    price, open, prev, high, low, volume, history, def.industry(),
+                    state != null && state.halted(), state != null ? state.haltRemainingCycles() : 0);
+            if (state != null && state.referencePrice() > 0) stock.setReferencePrice(state.referencePrice());
+            stocks.put(def.id(), stock);
         }
+        currentIndexValue = calculateIndexValue();
+        if (!Double.isFinite(previousIndexValue) || previousIndexValue <= 0) previousIndexValue = currentIndexValue;
     }
 
     /** Rebuilds stock instances after a datapack reload, keeping persisted prices. */
@@ -96,26 +107,32 @@ public final class MarketService {
     /** Call once per server tick. */
     public void tick(MinecraftServer server) {
         tickCount++;
-        long day = server.overworld().getDayTime() / 24000;
+        long day = marketDay(server);
         if (lastDayIndex != Long.MIN_VALUE && day != lastDayIndex) {
             stocks.values().forEach(stock -> stock.rollDay(lastDayIndex));
+            stocks.values().forEach(Stock::advanceHaltCycle);
             resetDailyBaselines(server, day);
+            runMarketCycleEvents(server, day);
         }
         lastDayIndex = day;
 
         int interval = Config.TICK_INTERVAL.get();
         if (interval <= 0 || tickCount % interval != 0) return;
+        double beforeIndex = calculateIndexValue();
         for (Stock stock : stocks.values()) {
+            if (stock.halted()) continue;
             updatePrice(stock, PriceModel.nextPrice(stock.price(), stock.drift(), stock.volatility(), random));
             matchOrders(stock, server);
         }
+        previousIndexValue = beforeIndex;
+        currentIndexValue = calculateIndexValue();
         pushToViewers(server, null);
     }
 
     private void matchOrders(Stock stock, MinecraftServer server) {
         // 撮合的唯一入口：关闭期间禁止一切成交，任何路径（tick、placeOrder、
         // 管理员 /market setprice 改价）都不得触发限价单撮合。
-        if (!Config.ENABLED.get()) {
+        if (!Config.ENABLED.get() || stock.halted()) {
             return;
         }
         OrderBook book = savedData.orderBook();
@@ -137,7 +154,7 @@ public final class MarketService {
             }
             AccountService.set(player, updated);
             AccountService.recordTrade(player, new TradeInfo(
-                    server.overworld().getDayTime() / 24000,
+                    marketDay(server),
                     order.stockId(), order.buy(), fillPrice, order.quantity(),
                     TradeEngine.feeFor(fillPrice, order.quantity(), Config.FEE_RATE.get())));
             stock.addVolume(order.quantity());
@@ -153,7 +170,7 @@ public final class MarketService {
 
     public void setPrice(String id, double price, MinecraftServer server) {
         Stock stock = stocks.get(id);
-        if (stock != null) {
+        if (stock != null && !stock.halted()) {
             updatePrice(stock, PriceModel.round(price));
             matchOrders(stock, server);
         }
@@ -195,6 +212,16 @@ public final class MarketService {
 
     public List<StockInfo> snapshot() {
         return stocks.values().stream().map(Stock::info).toList();
+    }
+
+    public List<MarketIndexInfo> indices() {
+        double value = currentIndexValue > 0 ? currentIndexValue : calculateIndexValue();
+        double change = previousIndexValue <= 0 ? 0 : (value - previousIndexValue) / previousIndexValue * 100.0;
+        return List.of(new MarketIndexInfo("market", "食韵综合指数", value, change));
+    }
+
+    public List<MarketNews> news() {
+        return savedData == null ? List.of() : savedData.news();
     }
 
     public Stock stock(String id) {
@@ -259,6 +286,9 @@ public final class MarketService {
         if (stock == null) {
             return new TradeEngine.Result(false, "未知股票：" + stockId, null, 0);
         }
+        if (stock.halted()) {
+            return new TradeEngine.Result(false, "股票停牌中，暂不可交易：" + stock.name(), null, 0);
+        }
         HoldingAccount account = normalizedAccount(player);
         TradeEngine.Result result = buy
                 ? TradeEngine.buy(account, stockId, stock.price(), quantity, Config.FEE_RATE.get())
@@ -299,6 +329,9 @@ public final class MarketService {
         Stock stock = stocks.get(stockId);
         if (stock == null) {
             return new LimitOrderPlacement(false, "未知股票：" + stockId, null, -1);
+        }
+        if (stock.halted()) {
+            return new LimitOrderPlacement(false, "股票停牌中，暂不可挂单：" + stock.name(), null, -1);
         }
         HoldingAccount account = normalizedAccount(player);
         double reservedCostBasis = buy ? 0 : TradeEngine.costBasisForSale(account, stockId, quantity);
@@ -346,12 +379,61 @@ public final class MarketService {
         return new TradeEngine.Result(true, "已撤单 #" + orderId, updated, 0);
     }
 
+    /** Cancels every outstanding order owned by the player and refunds each reservation. */
+    public TradeEngine.Result cancelAllOrders(ServerPlayer player) {
+        List<OrderBook.Order> orders = savedData.orderBook().ordersOf(player.getUUID());
+        if (orders.isEmpty()) {
+            return new TradeEngine.Result(true, "暂无可撤销委托", AccountService.get(player), 0);
+        }
+        int cancelled = 0;
+        HoldingAccount account = AccountService.get(player);
+        for (OrderBook.Order order : orders) {
+            TradeEngine.Result result = cancelOrder(player, order.id());
+            if (result.success()) {
+                cancelled++;
+                account = result.account();
+            }
+        }
+        return new TradeEngine.Result(true, "已撤销 " + cancelled + " 笔委托", account, 0);
+    }
+
+    /** Sells all currently available holdings, chunking large positions by MAX_ORDER_QTY. */
+    public TradeEngine.Result sellAllHoldings(ServerPlayer player) {
+        TradeEngine.Result gate = entryGate(1);
+        if (gate != null) return gate;
+        HoldingAccount start = normalizedAccount(player);
+        int soldShares = 0;
+        int blockedStocks = 0;
+        String firstError = null;
+        for (Map.Entry<String, Integer> entry : start.holdings().entrySet()) {
+            int remaining = Math.max(0, entry.getValue());
+            while (remaining > 0) {
+                int chunk = Math.min(remaining, Config.MAX_ORDER_QTY.get());
+                TradeEngine.Result result = trade(player, entry.getKey(), chunk, false);
+                if (!result.success()) {
+                    blockedStocks++;
+                    if (firstError == null) firstError = result.message();
+                    break;
+                }
+                soldShares += chunk;
+                remaining -= chunk;
+            }
+        }
+        HoldingAccount finalAccount = AccountService.get(player);
+        if (soldShares == 0 && blockedStocks > 0) {
+            return new TradeEngine.Result(false, firstError == null ? "没有可卖出的持仓" : firstError, finalAccount, 0);
+        }
+        String message = soldShares == 0 ? "没有可卖出的持仓" : "已卖出可用持仓 " + soldShares + " 股";
+        if (blockedStocks > 0) message += "（部分股票未成交）";
+        return new TradeEngine.Result(true, message, finalAccount, 0);
+    }
+
     public void sendSnapshot(ServerPlayer player, boolean openPanel, String message) {
         PacketDistributor.sendToPlayer(player, snapshotFor(player, openPanel, message));
     }
 
     public MarketSnapshotC2S snapshotFor(ServerPlayer player, boolean openPanel, String message) {
-        return new MarketSnapshotC2S(openPanel, message, snapshot(), accountInfo(player));
+        return new MarketSnapshotC2S(openPanel, message, snapshot(), accountInfo(player), indices(), news());
     }
 
     private HoldingAccount normalizedAccount(ServerPlayer player) {
@@ -392,7 +474,15 @@ public final class MarketService {
     }
 
     private long currentDay(ServerPlayer player) {
-        return player.server.overworld().getDayTime() / 24000;
+        return marketDay(player.server);
+    }
+
+    private long marketDay(MinecraftServer server) {
+        return server.overworld().getDayTime() / Math.max(1, Config.MARKET_CYCLE_TICKS.get());
+    }
+
+    public long marketDayIndex(MinecraftServer server) {
+        return marketDay(server);
     }
 
     private static double round2(double value) {
@@ -403,13 +493,119 @@ public final class MarketService {
         return Math.round(value * 100.0);
     }
 
+    private double calculateIndexValue() {
+        if (stocks.isEmpty()) return Config.INDEX_BASE_VALUE.get();
+        double sum = 0;
+        int count = 0;
+        for (Stock stock : stocks.values()) {
+            if (stock.initialPrice() <= 0 || !Double.isFinite(stock.price())) continue;
+            sum += stock.price() / stock.initialPrice();
+            count++;
+        }
+        return count == 0 ? Config.INDEX_BASE_VALUE.get()
+                : round2(Config.INDEX_BASE_VALUE.get() * sum / count);
+    }
+
+    /** Runs low-frequency, configurable market events at the cycle boundary. */
+    private void runMarketCycleEvents(MinecraftServer server, long day) {
+        if (stocks.isEmpty()) return;
+        List<Stock> candidates = stocks.values().stream().filter(stock -> !stock.halted()).toList();
+        if (candidates.isEmpty()) return;
+
+        if (random.nextDouble() < Config.NEWS_EVENT_PROBABILITY.get()) {
+            Stock stock = candidates.get(random.nextInt(candidates.size()));
+            double impact = (random.nextDouble() * 2.0 - 1.0) * Config.NEWS_IMPACT_MAX.get();
+            double before = stock.price();
+            updatePrice(stock, PriceModel.round(before * (1.0 + impact)));
+            savedData.addNews(day, stock.id(), stock.industry(), "NEWS",
+                    stock.industry() + "板块出现新消息",
+                    (impact >= 0 ? "市场情绪转暖，" : "市场情绪转弱，") + stock.name() + "价格受到影响",
+                    impact * 100.0);
+            matchOrders(stock, server);
+        }
+
+        if (random.nextDouble() < Config.DIVIDEND_PROBABILITY.get()) {
+            Stock stock = candidates.get(random.nextInt(candidates.size()));
+            MarketSavedData.CorporateAction action = savedData.addCorporateAction(day, stock.id(), "DIVIDEND",
+                    1, 1, Config.DIVIDEND_PER_SHARE.get());
+            applyPendingCorporateActions(server, action.id());
+            savedData.addNews(day, stock.id(), stock.industry(), "DIVIDEND",
+                    stock.name() + "发放分红",
+                    "每股分红 " + String.format("%.2f", action.dividendPerShare()) + "，按持仓股数入账",
+                    0);
+        }
+
+        if (random.nextDouble() < Config.SPLIT_PROBABILITY.get()) {
+            Stock stock = candidates.get(random.nextInt(candidates.size()));
+            MarketSavedData.CorporateAction action = savedData.addCorporateAction(day, stock.id(), "SPLIT",
+                    2, 1, 0);
+            stock.applySplit(action.numerator(), action.denominator());
+            savedData.orderBook().applySplit(stock.id(), action.numerator(), action.denominator());
+            applyPendingCorporateActions(server, action.id());
+            savedData.addNews(day, stock.id(), stock.industry(), "SPLIT",
+                    stock.name() + "进行拆股",
+                    "按 " + action.numerator() + ":" + action.denominator() + " 拆分，持仓股数同步调整",
+                    0);
+        }
+
+        if (random.nextDouble() < Config.HALT_PROBABILITY.get()) {
+            Stock stock = candidates.get(random.nextInt(candidates.size()));
+            int duration = Config.HALT_DURATION_CYCLES.get();
+            stock.halt(duration);
+            MarketSavedData.CorporateAction action = savedData.addCorporateAction(day, stock.id(), "HALT",
+                    1, 1, duration);
+            savedData.addNews(day, stock.id(), stock.industry(), "HALT",
+                    stock.name() + "临时停牌",
+                    "预计停牌 " + duration + " 个市场周期，期间不可交易",
+                    0);
+            applyPendingCorporateActions(server, action.id());
+        }
+        currentIndexValue = calculateIndexValue();
+    }
+
+    private void applyPendingCorporateActions(MinecraftServer server, long throughId) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            applyPendingCorporateActions(player, throughId);
+        }
+    }
+
+    /** Applies missed dividends/splits to a player who was offline during an event. */
+    public void applyPendingCorporateActions(ServerPlayer player) {
+        applyPendingCorporateActions(player, Long.MAX_VALUE);
+    }
+
+    private void applyPendingCorporateActions(ServerPlayer player, long throughId) {
+        AccountService.ensureInitialized(player);
+        AccountData data = player.getData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get());
+        for (MarketSavedData.CorporateAction action : savedData.corporateActions()) {
+            if (action.id() <= data.lastCorporateActionId || action.id() > throughId) continue;
+            HoldingAccount account = AccountService.get(player);
+            if ("SPLIT".equals(action.type())) {
+                account = TradeEngine.applySplit(account, action.stockId(), action.numerator(), action.denominator());
+            } else if ("DIVIDEND".equals(action.type())) {
+                int shares = account.holdings().getOrDefault(action.stockId(), 0);
+                shares += savedData.orderBook().ordersOf(player.getUUID()).stream()
+                        .filter(order -> !order.buy() && order.stockId().equals(action.stockId()))
+                        .mapToInt(OrderBook.Order::quantity).sum();
+                account = TradeEngine.payDividend(account, shares, action.dividendPerShare());
+            }
+            AccountService.set(player, account);
+            data.lastCorporateActionId = action.id();
+            player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
+        }
+    }
+
+    public long latestCorporateActionId() {
+        return savedData == null ? 0 : savedData.latestCorporateActionId();
+    }
+
     /** Persist price state so the market survives a restart. */
     public void save() {
         if (savedData == null) return;
         for (Stock stock : stocks.values()) {
             savedData.put(stock.id(), new MarketSavedData.StockState(
                     stock.price(), stock.dayOpen(), stock.prevClose(), stock.dayHigh(), stock.dayLow(),
-                    stock.volume(), stock.history()));
+                    stock.volume(), stock.history(), stock.halted(), stock.haltRemainingCycles(), stock.initialPrice()));
         }
         savedData.setDirty();
     }

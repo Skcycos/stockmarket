@@ -1,1 +1,1 @@
-{ "name": "筑家建设", "initialPrice": 8.20, "drift": 0.000002, "volatility": 0.0050 }
+{ "name": "筑家建设", "industry": "建设", "initialPrice": 8.20, "drift": 0.000002, "volatility": 0.0050 }

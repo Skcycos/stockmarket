@@ -6,14 +6,18 @@ import com.sighs.apricityui.screen.ApricityScreen;
 import com.sighs.apricityui.event.MouseEvent;
 import com.tanrunn.stockmarket.common.Candle;
 import com.tanrunn.stockmarket.common.AccountInfo;
+import com.tanrunn.stockmarket.common.MarketIndexInfo;
+import com.tanrunn.stockmarket.common.MarketNews;
 import com.tanrunn.stockmarket.common.OrderInfo;
 import com.tanrunn.stockmarket.common.StockInfo;
 import com.tanrunn.stockmarket.common.TradeInfo;
 import com.tanrunn.stockmarket.common.network.CancelOrderRequestC2S;
+import com.tanrunn.stockmarket.common.network.CancelAllOrdersRequestC2S;
 import com.tanrunn.stockmarket.common.network.LimitOrderRequestC2S;
 import com.tanrunn.stockmarket.common.network.MarketRequestC2S;
 import com.tanrunn.stockmarket.common.network.MarketSnapshotC2S;
 import com.tanrunn.stockmarket.common.network.TradeRequestC2S;
+import com.tanrunn.stockmarket.common.network.SellAllHoldingsRequestC2S;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -66,6 +70,7 @@ public final class MarketIntegration {
         private String orderFilter = "all";
         private String stockFilter = "all";
         private String stockSort = "default";
+        private String portfolioSort = "default";
         private String armedAction;
         private long armedUntil;
         private long lastTradeRequestAt;
@@ -118,6 +123,12 @@ public final class MarketIntegration {
             bindStockSort(doc, "aui-stock-sort-default", "default");
             bindStockSort(doc, "aui-stock-sort-change", "change");
             bindStockSort(doc, "aui-stock-sort-price", "price");
+            bindPortfolioSort(doc, "aui-portfolio-sort-default", "default");
+            bindPortfolioSort(doc, "aui-portfolio-sort-pnl", "pnl");
+            bindPortfolioSort(doc, "aui-portfolio-sort-value", "value");
+            bindPortfolioSort(doc, "aui-portfolio-sort-change", "change");
+            bindBatchAction(doc, "aui-sell-all-holdings", "sell-all-holdings");
+            bindBatchAction(doc, "aui-cancel-all-orders", "cancel-all-orders");
             bindKlineToggle(doc, "aui-kline-ma5", "ma5");
             bindKlineToggle(doc, "aui-kline-ma10", "ma10");
             bindKlineToggle(doc, "aui-kline-volume", "volume");
@@ -226,6 +237,52 @@ public final class MarketIntegration {
             }
         }
 
+        private void bindPortfolioSort(Document doc, String id, String sort) {
+            Element button = doc.getElementById(id);
+            if (button == null) return;
+            button.addEventListener("click", event -> {
+                portfolioSort = sort;
+                renderPortfolioControls(doc);
+                if (pending != null) renderPortfolio(doc, pending.account());
+            });
+        }
+
+        private void renderPortfolioControls(Document doc) {
+            setActive(doc, "aui-portfolio-sort-default", "default".equals(portfolioSort));
+            setActive(doc, "aui-portfolio-sort-pnl", "pnl".equals(portfolioSort));
+            setActive(doc, "aui-portfolio-sort-value", "value".equals(portfolioSort));
+            setActive(doc, "aui-portfolio-sort-change", "change".equals(portfolioSort));
+        }
+
+        private void bindBatchAction(Document doc, String id, String action) {
+            Element button = doc.getElementById(id);
+            if (button == null) return;
+            button.addEventListener("click", event -> {
+                long now = System.currentTimeMillis();
+                if (now - lastTradeRequestAt < REQUEST_COOLDOWN_MS) {
+                    setText(doc, "aui-msg", "上一笔请求仍在处理中，请稍候");
+                    return;
+                }
+                String key = "batch:" + action;
+                if (!key.equals(armedAction) || now > armedUntil) {
+                    armedAction = key;
+                    armedUntil = now + CONFIRM_WINDOW_MS;
+                    setText(doc, "aui-msg", "再次点击确认" + ("sell-all-holdings".equals(action)
+                            ? "卖出全部可用持仓" : "撤销全部委托"));
+                    return;
+                }
+                armedAction = null;
+                armedUntil = 0;
+                lastTradeRequestAt = now;
+                if ("sell-all-holdings".equals(action)) {
+                    PacketDistributor.sendToServer(new SellAllHoldingsRequestC2S());
+                } else {
+                    PacketDistributor.sendToServer(new CancelAllOrdersRequestC2S());
+                }
+                setText(doc, "aui-msg", "批量请求已发送，请等待服务器确认");
+            });
+        }
+
         private void renderStockControls(Document doc) {
             setActive(doc, "aui-stock-filter-all", "all".equals(stockFilter));
             setActive(doc, "aui-stock-filter-held", "held".equals(stockFilter));
@@ -312,10 +369,53 @@ public final class MarketIntegration {
             }
             renderStockControls(doc);
             renderStocks(doc);
+            renderMarketOverview(doc);
             renderAccount(doc, pending.account());
             renderKlineControls(doc);
             renderSelected(doc);
             switchView(doc, currentView);
+        }
+
+        private void renderMarketOverview(Document doc) {
+            if (pending == null) return;
+            MarketIndexInfo index = pending.indices().isEmpty() ? null : pending.indices().get(0);
+            if (index != null) {
+                setText(doc, "aui-index-summary", index.name() + " " + MONEY.format(index.value()));
+                setText(doc, "aui-index-change", String.format("%+.2f%%", index.changePct()));
+                Element change = doc.getElementById("aui-index-change");
+                if (change != null) change.setAttribute("class", index.changePct() >= 0 ? "stock-up" : "stock-down");
+            }
+            Element list = doc.getElementById("aui-news-list");
+            if (list == null) return;
+            List<MarketNews> items = pending.news().stream().limit(5).toList();
+            List<Element> existing = new ArrayList<>(list.getChildren());
+            if (items.isEmpty()) {
+                if (existing.size() != 1 || !"true".equals(existing.get(0).getAttribute("data-empty"))) {
+                    for (Element child : existing) list.removeChild(child);
+                    Element empty = doc.createElement("span");
+                    empty.setAttribute("data-empty", "true");
+                    empty.setTextContent("暂无市场消息");
+                    list.appendChild(empty);
+                }
+                return;
+            }
+            if (existing.size() != items.size()) {
+                for (Element child : existing) list.removeChild(child);
+                existing.clear();
+            }
+            for (int i = 0; i < items.size(); i++) {
+                MarketNews item = items.get(i);
+                Element row = i < existing.size() ? existing.get(i) : doc.createElement("div");
+                if (i >= existing.size()) {
+                    row.setAttribute("class", "news-row");
+                    row.appendChild(doc.createElement("span"));
+                    row.appendChild(doc.createElement("span"));
+                    list.appendChild(row);
+                }
+                List<Element> cells = new ArrayList<>(row.getChildren());
+                cells.get(0).setTextContent(item.title());
+                cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
+            }
         }
 
         private void renderStocks(Document doc) {
@@ -392,7 +492,8 @@ public final class MarketIntegration {
             double change = stock.changePct();
             String color = change >= 0 ? "stock-up" : "stock-down";
             List<Element> children = new java.util.ArrayList<>(row.getChildren());
-            children.get(0).setTextContent(stock.name());
+            children.get(0).setTextContent(stock.name() + " · " + stock.industry()
+                    + (stock.halted() ? "（停牌）" : ""));
             Element price = children.get(1);
             price.setAttribute("class", "stock-price " + color);
             price.setTextContent(MONEY.format(stock.price()) + " (" + String.format("%+.2f%%", change) + ")");
@@ -445,6 +546,7 @@ public final class MarketIntegration {
             setPnl(doc, "aui-portfolio-daily-pnl", account.dailyPnl());
             setText(doc, "aui-portfolio-hint", "可用 " + account.availableHoldingsQuantity()
                     + " 股 · 冻结 " + account.reservedHoldingsQuantity() + " 股 · 点击股票进入交易");
+            renderPortfolioControls(doc);
 
             Element list = doc.getElementById("aui-portfolio-list");
             if (list == null) return;
@@ -453,6 +555,16 @@ public final class MarketIntegration {
                 if (account.holdings().getOrDefault(stock.id(), 0) > 0) {
                     heldStocks.add(stock);
                 }
+            }
+            if ("pnl".equals(portfolioSort)) {
+                heldStocks.sort(Comparator.comparingDouble((StockInfo stock) -> portfolioPnl(stock, account)).reversed()
+                        .thenComparing(StockInfo::id));
+            } else if ("value".equals(portfolioSort)) {
+                heldStocks.sort(Comparator.comparingDouble((StockInfo stock) -> portfolioValue(stock, account)).reversed()
+                        .thenComparing(StockInfo::id));
+            } else if ("change".equals(portfolioSort)) {
+                heldStocks.sort(Comparator.comparingDouble(StockInfo::changePct).reversed()
+                        .thenComparing(StockInfo::id));
             }
             List<Element> existing = new ArrayList<>(list.getChildren());
             boolean sameStructure = existing.size() == heldStocks.size();
@@ -504,14 +616,14 @@ public final class MarketIntegration {
                     renderSelected(current);
                 }
             });
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 9; i++) {
                 Element cell = doc.createElement("span");
                 if (i == 0) cell.setAttribute("class", "portfolio-cell-name");
-                else if (i == 7) cell.setAttribute("class", "portfolio-action");
+                else if (i == 8) cell.setAttribute("class", "portfolio-action");
                 else cell.setAttribute("class", "portfolio-cell");
                 row.appendChild(cell);
             }
-            Element actions = row.getChildren().get(7);
+            Element actions = row.getChildren().get(8);
             actions.setAttribute("class", "portfolio-action");
             addSellButton(doc, row, actions, 25, "25%");
             addSellButton(doc, row, actions, 50, "50%");
@@ -544,20 +656,30 @@ public final class MarketIntegration {
             double basis = account.costBasis().getOrDefault(stock.id(), 0.0);
             double averageCost = quantity <= 0 || basis <= 0 ? 0 : basis / quantity;
             double pnl = stock.price() * quantity - basis;
+            double marketValue = stock.price() * quantity;
             row.setAttribute("data-stock", stock.id());
             List<Element> cells = new ArrayList<>(row.getChildren());
-            cells.get(0).setTextContent(stock.name());
+            cells.get(0).setTextContent(stock.name() + " · " + stock.industry());
             cells.get(1).setTextContent(String.valueOf(quantity));
-            cells.get(2).setTextContent(averageCost <= 0 ? "—" : MONEY.format(averageCost));
-            cells.get(3).setTextContent(MONEY.format(stock.price()) + " (" + String.format("%+.2f%%", stock.changePct()) + ")");
+            cells.get(2).setTextContent(MONEY.format(marketValue));
+            cells.get(3).setTextContent(averageCost <= 0 ? "—" : MONEY.format(averageCost));
+            cells.get(4).setTextContent(MONEY.format(stock.price()) + " (" + String.format("%+.2f%%", stock.changePct()) + ")");
             double dailyPnl = (stock.price() - stock.prevClose()) * quantity;
             double pnlPct = basis <= 0 ? 0 : pnl / basis * 100.0;
-            cells.get(4).setTextContent(formatPnl(dailyPnl));
-            cells.get(4).setAttribute("class", "portfolio-cell pnl" + (dailyPnl < 0 ? " down" : ""));
-            cells.get(5).setTextContent(formatPnl(pnl));
-            cells.get(5).setAttribute("class", "portfolio-cell pnl" + (pnl < 0 ? " down" : ""));
-            cells.get(6).setTextContent(formatPnl(pnlPct) + "%");
-            cells.get(6).setAttribute("class", "portfolio-cell pnl" + (pnlPct < 0 ? " down" : ""));
+            cells.get(5).setTextContent(formatPnl(dailyPnl));
+            cells.get(5).setAttribute("class", "portfolio-cell pnl" + (dailyPnl < 0 ? " down" : ""));
+            cells.get(6).setTextContent(formatPnl(pnl));
+            cells.get(6).setAttribute("class", "portfolio-cell pnl" + (pnl < 0 ? " down" : ""));
+            cells.get(7).setTextContent(formatPnl(pnlPct) + "%");
+            cells.get(7).setAttribute("class", "portfolio-cell pnl" + (pnlPct < 0 ? " down" : ""));
+        }
+
+        private double portfolioValue(StockInfo stock, AccountInfo account) {
+            return stock.price() * account.holdings().getOrDefault(stock.id(), 0);
+        }
+
+        private double portfolioPnl(StockInfo stock, AccountInfo account) {
+            return portfolioValue(stock, account) - account.costBasis().getOrDefault(stock.id(), 0.0);
         }
 
         private void renderOrdersPage(Document doc, AccountInfo account) {
@@ -706,7 +828,8 @@ public final class MarketIntegration {
 
         private void renderSelected(Document doc) {
             StockInfo stock = findSelected();
-            setText(doc, "aui-selected", stock == null ? "未选择" : stock.name() + " · " + MONEY.format(stock.price()));
+            setText(doc, "aui-selected", stock == null ? "未选择" : stock.name() + " · " + stock.industry()
+                    + " · " + MONEY.format(stock.price()) + (stock.halted() ? " · 停牌" : ""));
             setText(doc, "aui-qty", String.valueOf(quantity));
             setText(doc, "aui-price", MONEY.format(limitPrice));
             setText(doc, "aui-estimate", "≈ " + MONEY.format(limitPrice * quantity));

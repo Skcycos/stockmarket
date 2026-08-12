@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StockTest {
 
@@ -45,5 +47,29 @@ class StockTest {
         }
         assertEquals(40, stock.history().size());
         assertEquals(59, stock.history().get(39).dayIndex(), "oldest kept candle is the most recent 40");
+    }
+
+    @Test
+    void splitScalesPriceHistoryAndLeavesReferenceRatioStable() {
+        Stock stock = new Stock("t", "测试", 20, 0, 0.02, 20, 20, 20, 22, 18, 100,
+                List.of(new Candle(1, 18, 20, 22, 17, 100)), "科技", false, 0);
+        stock.applySplit(2, 1);
+        assertEquals(10.0, stock.initialPrice(), 0.001);
+        assertEquals(10.0, stock.price(), 0.001);
+        assertEquals(11.0, stock.dayHigh(), 0.001);
+        assertEquals(200, stock.volume());
+        assertEquals(9.0, stock.history().get(0).open(), 0.001);
+        assertEquals(200, stock.history().get(0).volume());
+    }
+
+    @Test
+    void haltTimerResumesAfterConfiguredCycles() {
+        Stock stock = new Stock("t", "测试", 10, 0, 0.02, 10, 10, 10, 10, 10, 0, List.of());
+        stock.halt(2);
+        assertTrue(stock.halted());
+        stock.advanceHaltCycle();
+        assertTrue(stock.halted());
+        stock.advanceHaltCycle();
+        assertFalse(stock.halted());
     }
 }

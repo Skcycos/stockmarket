@@ -1,6 +1,8 @@
 package com.tanrunn.stockmarket.common.network;
 
 import com.tanrunn.stockmarket.common.AccountInfo;
+import com.tanrunn.stockmarket.common.MarketIndexInfo;
+import com.tanrunn.stockmarket.common.MarketNews;
 import com.tanrunn.stockmarket.common.StockInfo;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -20,7 +22,19 @@ public record MarketSnapshotC2S(
         boolean openPanel,
         String message,
         List<StockInfo> stocks,
-        AccountInfo account) implements CustomPacketPayload {
+        AccountInfo account,
+        List<MarketIndexInfo> indices,
+        List<MarketNews> news) implements CustomPacketPayload {
+
+    public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account) {
+        this(openPanel, message, stocks, account, List.of(), List.of());
+    }
+
+    public MarketSnapshotC2S {
+        stocks = List.copyOf(stocks == null ? List.of() : stocks);
+        indices = List.copyOf(indices == null ? List.of() : indices);
+        news = List.copyOf(news == null ? List.of() : news);
+    }
 
     public static final Type<MarketSnapshotC2S> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath("stockmarket", "market_snapshot"));
@@ -40,6 +54,9 @@ public record MarketSnapshotC2S(
                 double dayHigh = buf.readDouble();
                 double dayLow = buf.readDouble();
                 long volume = buf.readVarLong();
+                String industry = buf.readUtf(64);
+                boolean halted = buf.readBoolean();
+                int haltRemainingCycles = buf.readVarInt();
                 int candleCount = buf.readVarInt();
                 List<com.tanrunn.stockmarket.common.Candle> history = new ArrayList<>(candleCount);
                 for (int j = 0; j < candleCount; j++) {
@@ -47,7 +64,19 @@ public record MarketSnapshotC2S(
                             buf.readVarLong(), buf.readDouble(), buf.readDouble(),
                             buf.readDouble(), buf.readDouble(), buf.readVarLong()));
                 }
-                stocks.add(new StockInfo(stockId, name, price, prevClose, dayHigh, dayLow, volume, history));
+                stocks.add(new StockInfo(stockId, name, price, prevClose, dayHigh, dayLow, volume, history,
+                        industry, halted, haltRemainingCycles));
+            }
+            int indexCount = buf.readVarInt();
+            List<MarketIndexInfo> indices = new ArrayList<>(indexCount);
+            for (int i = 0; i < indexCount; i++) {
+                indices.add(new MarketIndexInfo(buf.readUtf(64), buf.readUtf(64), buf.readDouble(), buf.readDouble()));
+            }
+            int newsCount = buf.readVarInt();
+            List<MarketNews> news = new ArrayList<>(newsCount);
+            for (int i = 0; i < newsCount; i++) {
+                news.add(new MarketNews(buf.readVarLong(), buf.readVarLong(), buf.readUtf(64), buf.readUtf(64),
+                        buf.readUtf(32), buf.readUtf(256), buf.readUtf(512), buf.readDouble()));
             }
             double cash = buf.readDouble();
             double totalValue = buf.readDouble();
@@ -89,7 +118,7 @@ public record MarketSnapshotC2S(
                 new AccountInfo(cash, totalValue, holdingsValue, unrealizedPnl, realizedPnl,
                             dailyPnl, totalPnl, reservedCash, availableHoldingsValue,
                             reservedHoldingsValue, availableHoldingsQuantity, reservedHoldingsQuantity,
-                            holdings, costBasis, orders, trades));
+                            holdings, costBasis, orders, trades), indices, news);
         }
 
         @Override
@@ -105,6 +134,9 @@ public record MarketSnapshotC2S(
                 buf.writeDouble(stock.dayHigh());
                 buf.writeDouble(stock.dayLow());
                 buf.writeVarLong(stock.volume());
+                buf.writeUtf(stock.industry(), 64);
+                buf.writeBoolean(stock.halted());
+                buf.writeVarInt(stock.haltRemainingCycles());
                 List<com.tanrunn.stockmarket.common.Candle> history = stock.history();
                 buf.writeVarInt(history.size());
                 for (com.tanrunn.stockmarket.common.Candle candle : history) {
@@ -115,6 +147,24 @@ public record MarketSnapshotC2S(
                     buf.writeDouble(candle.low());
                     buf.writeVarLong(candle.volume());
                 }
+            }
+            buf.writeVarInt(value.indices().size());
+            for (MarketIndexInfo index : value.indices()) {
+                buf.writeUtf(index.id(), 64);
+                buf.writeUtf(index.name(), 64);
+                buf.writeDouble(index.value());
+                buf.writeDouble(index.changePct());
+            }
+            buf.writeVarInt(value.news().size());
+            for (MarketNews item : value.news()) {
+                buf.writeVarLong(item.id());
+                buf.writeVarLong(item.dayIndex());
+                buf.writeUtf(item.stockId(), 64);
+                buf.writeUtf(item.industry(), 64);
+                buf.writeUtf(item.type(), 32);
+                buf.writeUtf(item.title(), 256);
+                buf.writeUtf(item.detail(), 512);
+                buf.writeDouble(item.impactPct());
             }
             buf.writeDouble(value.account().cash());
             buf.writeDouble(value.account().totalValue());

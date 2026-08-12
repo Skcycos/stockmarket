@@ -11,7 +11,16 @@ public record StockQuote(
         long dayHighCents,
         long dayLowCents,
         long volume,
-        List<CandleSnapshot> history) {
+        List<CandleSnapshot> history,
+        String industry,
+        boolean halted,
+        int haltRemainingCycles) {
+
+    public StockQuote(String id, String name, long priceCents, long prevCloseCents, long dayHighCents,
+                      long dayLowCents, long volume, List<CandleSnapshot> history) {
+        this(id, name, priceCents, prevCloseCents, dayHighCents, dayLowCents, volume, history,
+                "综合", false, 0);
+    }
 
     public StockQuote {
         history = List.copyOf(history);

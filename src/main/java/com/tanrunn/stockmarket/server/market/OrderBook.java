@@ -116,6 +116,26 @@ public final class OrderBook {
         return orders.size();
     }
 
+    /** Reprices and resizes outstanding orders for a forward stock split. */
+    public void applySplit(String stockId, int numerator, int denominator) {
+        if (stockId == null || numerator <= 0 || denominator <= 0 || numerator == denominator) return;
+        double ratio = (double) numerator / denominator;
+        boolean changed = false;
+        for (Map.Entry<Long, Order> entry : new ArrayList<>(orders.entrySet())) {
+            Order order = entry.getValue();
+            if (!stockId.equals(order.stockId())) continue;
+            long scaled = (long) order.quantity() * numerator / denominator;
+            if (scaled <= 0 || scaled > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("split order quantity out of range");
+            }
+            entry.setValue(new Order(order.id(), order.player(), order.stockId(), order.buy(),
+                    Math.max(0.01, PriceModel.round(order.price() / ratio)), (int) scaled,
+                    order.reservedCostBasis()));
+            changed = true;
+        }
+        if (changed) dirtyHandler.run();
+    }
+
     /** Matches all eligible orders of one stock at the given market price. */
     public void match(String stockId, double marketPrice, MatchSink sink) {
         List<Long> filled = new ArrayList<>();

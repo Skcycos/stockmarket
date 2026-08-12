@@ -8,5 +8,14 @@
   "stockmarket.configuration.initialCash": "初始资金",
   "stockmarket.configuration.feeRate": "手续费率",
   "stockmarket.configuration.tickInterval": "行情更新间隔（tick）",
-  "stockmarket.configuration.maxOrderQty": "单笔最大数量"
+  "stockmarket.configuration.maxOrderQty": "单笔最大数量",
+  "stockmarket.configuration.marketCycleTicks": "市场周期长度（tick）",
+  "stockmarket.configuration.newsEventProbability": "公司新闻概率",
+  "stockmarket.configuration.dividendProbability": "分红概率",
+  "stockmarket.configuration.splitProbability": "拆股概率",
+  "stockmarket.configuration.haltProbability": "停牌概率",
+  "stockmarket.configuration.haltDurationCycles": "停牌周期数",
+  "stockmarket.configuration.dividendPerShare": "每股分红金额",
+  "stockmarket.configuration.indexBaseValue": "大盘指数基准值",
+  "stockmarket.configuration.newsImpactMax": "新闻最大影响"
 }

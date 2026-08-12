@@ -1,1 +1,1 @@
-{ "name": "流云商贸", "initialPrice": 15.30, "drift": 0.000002, "volatility": 0.0060 }
+{ "name": "流云商贸", "industry": "商贸", "initialPrice": 15.30, "drift": 0.000002, "volatility": 0.0060 }

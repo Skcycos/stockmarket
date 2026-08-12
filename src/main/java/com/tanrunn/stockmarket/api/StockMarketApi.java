@@ -1,6 +1,8 @@
 package com.tanrunn.stockmarket.api;
 
 import com.tanrunn.stockmarket.common.AccountInfo;
+import com.tanrunn.stockmarket.common.MarketIndexInfo;
+import com.tanrunn.stockmarket.common.MarketNews;
 import com.tanrunn.stockmarket.common.StockInfo;
 import com.tanrunn.stockmarket.server.market.AccountService;
 import com.tanrunn.stockmarket.server.market.HoldingAccount;
@@ -28,7 +30,7 @@ import com.tanrunn.stockmarket.api.event.BalanceChangedEvent;
  * be called on the server thread.</p>
  */
 public final class StockMarketApi {
-    public static final String API_VERSION = "1";
+    public static final String API_VERSION = "2";
     private static final Map<String, CurrencyBridge> CURRENCY_BRIDGES = new ConcurrentHashMap<>();
     private static final Set<String> AUTHORIZED_WITHDRAWAL_SOURCES = ConcurrentHashMap.newKeySet();
 
@@ -122,6 +124,14 @@ public final class StockMarketApi {
         return requireService().snapshot().stream().map(StockMarketApi::quote).toList();
     }
 
+    public static List<MarketIndexInfo> indices() {
+        return requireService().indices();
+    }
+
+    public static List<MarketNews> news() {
+        return requireService().news();
+    }
+
     public static Optional<StockQuote> quote(String stockId) {
         if (stockId == null || stockId.isBlank() || !isAvailable()) return Optional.empty();
         var stock = requireService().stock(stockId);
@@ -165,6 +175,22 @@ public final class StockMarketApi {
         TradeEngine.Result result = requireService().cancelOrder(player, orderId);
         long balance = result.account() == null ? safeBalance(player) : cents(result.account().cash());
         return new TradeResult(result.success(), result.message(), orderId, balance);
+    }
+
+    public static TradeResult cancelAllOrders(ServerPlayer player) {
+        requirePlayer(player);
+        if (!isServerThread(player)) return TradeResult.failure("必须在服务端主线程调用", 0);
+        TradeEngine.Result result = requireService().cancelAllOrders(player);
+        long balance = result.account() == null ? safeBalance(player) : cents(result.account().cash());
+        return new TradeResult(result.success(), result.message(), -1, balance);
+    }
+
+    public static TradeResult sellAllHoldings(ServerPlayer player) {
+        requirePlayer(player);
+        if (!isServerThread(player)) return TradeResult.failure("必须在服务端主线程调用", 0);
+        TradeEngine.Result result = requireService().sellAllHoldings(player);
+        long balance = result.account() == null ? safeBalance(player) : cents(result.account().cash());
+        return new TradeResult(result.success(), result.message(), -1, balance);
     }
 
     // ---- optional economy bridge registry ----
@@ -230,7 +256,7 @@ public final class StockMarketApi {
         AccountService.set(player, updated);
         String transactionId = UUID.randomUUID().toString();
         TransactionRecord transaction = new TransactionRecord(transactionId, normalizedRequestId,
-                player.server.overworld().getDayTime() / 24000, deltaCents, next,
+                requireService().marketDayIndex(player.server), deltaCents, next,
                 normalizedSource, normalizedReason);
         AccountService.recordTransaction(player, transaction);
         NeoForge.EVENT_BUS.post(new BalanceChangedEvent(player, type, deltaCents, next,
@@ -244,7 +270,7 @@ public final class StockMarketApi {
                 cents(info.dayHigh()), cents(info.dayLow()), info.volume(), info.history().stream()
                 .map(candle -> new CandleSnapshot(candle.dayIndex(), cents(candle.open()), cents(candle.close()),
                         cents(candle.high()), cents(candle.low()), candle.volume()))
-                .toList());
+                .toList(), info.industry(), info.halted(), info.haltRemainingCycles());
     }
 
     private static long safeBalance(ServerPlayer player) {

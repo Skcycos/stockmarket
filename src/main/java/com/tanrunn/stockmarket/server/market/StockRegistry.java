@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * Datapack-driven stock definitions: data/stockmarket/stocks/*.json
- * { "name": "...", "initialPrice": 10.0, "drift": 0.0002, "volatility": 0.02 }
+ * { "name": "...", "industry": "科技", "initialPrice": 10.0, "drift": 0.0002, "volatility": 0.02 }
  */
 public final class StockRegistry {
     private static final Gson GSON = new Gson();
@@ -32,7 +32,11 @@ public final class StockRegistry {
         this.stocks = Map.copyOf(stocks);
     }
 
-    public record Definition(String id, String name, double initialPrice, double drift, double volatility) {
+    public record Definition(String id, String name, double initialPrice, double drift, double volatility,
+                             String industry) {
+        public Definition(String id, String name, double initialPrice, double drift, double volatility) {
+            this(id, name, initialPrice, drift, volatility, "综合");
+        }
     }
 
     public static StockRegistry get() {
@@ -45,18 +49,18 @@ public final class StockRegistry {
 
     private static Map<String, Definition> defaultStocks() {
         Map<String, Definition> stocks = new LinkedHashMap<>();
-        add(stocks, "yanhuo", "烟火食铺", 12.50, 0.0002, 0.020);
-        add(stocks, "zhujia", "筑家建设", 8.20, 0.0001, 0.018);
-        add(stocks, "changg", "长歌矿业", 23.60, 0.0003, 0.030);
-        add(stocks, "liuyun", "流云商贸", 15.30, 0.0002, 0.024);
-        add(stocks, "qingyun", "青云科技", 45.80, 0.0005, 0.042);
-        add(stocks, "songzhu", "松竹银行", 31.20, 0.0000, 0.010);
+        add(stocks, "yanhuo", "烟火食铺", 12.50, 0.0002, 0.020, "消费");
+        add(stocks, "zhujia", "筑家建设", 8.20, 0.0001, 0.018, "建设");
+        add(stocks, "changg", "长歌矿业", 23.60, 0.0003, 0.030, "资源");
+        add(stocks, "liuyun", "流云商贸", 15.30, 0.0002, 0.024, "商贸");
+        add(stocks, "qingyun", "青云科技", 45.80, 0.0005, 0.042, "科技");
+        add(stocks, "songzhu", "松竹银行", 31.20, 0.0000, 0.010, "金融");
         return stocks;
     }
 
     private static void add(Map<String, Definition> stocks, String id, String name,
-                            double price, double drift, double vol) {
-        stocks.put(id, new Definition(id, name, price, drift, vol));
+                            double price, double drift, double vol, String industry) {
+        stocks.put(id, new Definition(id, name, price, drift, vol, industry));
     }
 
     private static StockRegistry load(ResourceManager manager) {
@@ -73,7 +77,8 @@ public final class StockRegistry {
                     double price = obj.has("initialPrice") ? obj.get("initialPrice").getAsDouble() : 10.0;
                     double drift = obj.has("drift") ? obj.get("drift").getAsDouble() : 0.0;
                     double vol = obj.has("volatility") ? obj.get("volatility").getAsDouble() : 0.02;
-                    stocks.put(id, new Definition(id, name, price, drift, vol));
+                    String industry = obj.has("industry") ? obj.get("industry").getAsString() : "综合";
+                    stocks.put(id, new Definition(id, name, price, drift, vol, industry));
                 }
             } catch (Exception e) {
                 StockMarketMod.LOGGER.error("Failed to load stock {} from datapack", id, e);

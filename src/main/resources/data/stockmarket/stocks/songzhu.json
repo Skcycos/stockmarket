@@ -1,1 +1,1 @@
-{ "name": "松竹银行", "initialPrice": 31.20, "drift": 0.000000, "volatility": 0.0040 }
+{ "name": "松竹银行", "industry": "金融", "initialPrice": 31.20, "drift": 0.000000, "volatility": 0.0040 }

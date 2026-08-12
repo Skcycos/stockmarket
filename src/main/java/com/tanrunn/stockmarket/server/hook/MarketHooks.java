@@ -47,10 +47,13 @@ public class MarketHooks {
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         AccountData data = player.getData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get());
+        MarketService service = MarketService.get();
         if (!data.initialized) {
             data.initialized = true;
             data.cash = Config.INITIAL_CASH.get();
+            if (service != null) data.lastCorporateActionId = service.latestCorporateActionId();
             player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
         }
+        if (service != null) service.applyPendingCorporateActions(player);
     }
 }
