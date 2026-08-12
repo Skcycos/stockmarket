@@ -654,7 +654,6 @@ public final class MarketIntegration {
                     + MONEY.format(account.availableHoldingsValue())
                     + " · 冻结持仓 " + account.reservedHoldingsQuantity() + "股 / "
                     + MONEY.format(account.reservedHoldingsValue()));
-            renderOrders(doc, account);
             renderPortfolio(doc, account);
             renderOrdersPage(doc, account);
         }
@@ -861,17 +860,6 @@ public final class MarketIntegration {
                 cells.get(1).setAttribute("class", "trade-note");
                 cells.get(1).setTextContent("第" + trade.dayIndex() + "日 · 手续费 " + MONEY.format(trade.fee()));
             }
-        }
-
-        /**
-         * 委托列表：每行包含委托文本与撤单按钮，撤单按钮绑定订单 ID。
-         * 委托集合不变时只更新已有行的文本，避免高频重建 DOM；
-         * 只有委托集合变化（新挂单/成交/撤单）才重建列表。
-         */
-        private void renderOrders(Document doc, AccountInfo account) {
-            Element list = doc.getElementById("aui-orders");
-            if (list == null) return;
-            renderOrderList(doc, list, account.orders(), "暂无委托");
         }
 
         private void renderOrderList(Document doc, Element list, List<OrderInfo> orders, String emptyText) {
