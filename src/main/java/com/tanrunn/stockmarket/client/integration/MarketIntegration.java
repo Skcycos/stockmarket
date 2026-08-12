@@ -131,6 +131,7 @@ public final class MarketIntegration {
             bindViewTab(doc, "aui-tab-quotes", "quotes");
             bindViewTab(doc, "aui-tab-portfolio", "portfolio");
             bindViewTab(doc, "aui-tab-orders", "orders");
+            bindViewTab(doc, "aui-tab-news", "news");
             bindOrderFilter(doc, "aui-order-filter-all", "all");
             bindOrderFilter(doc, "aui-order-filter-buy", "buy");
             bindOrderFilter(doc, "aui-order-filter-sell", "sell");
@@ -209,9 +210,11 @@ public final class MarketIntegration {
             setActive(doc, "aui-tab-quotes", "quotes".equals(view));
             setActive(doc, "aui-tab-portfolio", "portfolio".equals(view));
             setActive(doc, "aui-tab-orders", "orders".equals(view));
+            setActive(doc, "aui-tab-news", "news".equals(view));
             setActive(doc, "aui-quotes-view", "quotes".equals(view));
             setActive(doc, "aui-portfolio-view", "portfolio".equals(view));
             setActive(doc, "aui-orders-view", "orders".equals(view));
+            setActive(doc, "aui-news-view", "news".equals(view));
             setActive(doc, "aui-quotes-tail", "quotes".equals(view));
         }
 
@@ -400,6 +403,7 @@ public final class MarketIntegration {
             renderStockControls(doc);
             renderStocks(doc);
             renderMarketOverview(doc);
+            renderNewsPage(doc);
             renderAccount(doc, pending.account());
             renderKlineControls(doc);
             renderSelected(doc);
@@ -417,7 +421,7 @@ public final class MarketIntegration {
             }
             Element list = doc.getElementById("aui-news-list");
             if (list == null) return;
-            List<MarketNews> items = pending.news().stream().limit(5).toList();
+            List<MarketNews> items = pending.news().stream().limit(1).toList();
             List<Element> existing = new ArrayList<>(list.getChildren());
             if (items.isEmpty()) {
                 if (existing.size() != 1 || !"true".equals(existing.get(0).getAttribute("data-empty"))) {
@@ -429,23 +433,109 @@ public final class MarketIntegration {
                 }
                 return;
             }
-            if (existing.size() != items.size()) {
+            if (existing.size() != 1) {
+                for (Element child : existing) list.removeChild(child);
+                existing.clear();
+            }
+            MarketNews item = items.get(0);
+            Element row = existing.isEmpty() ? doc.createElement("div") : existing.get(0);
+            if (existing.isEmpty()) {
+                row.setAttribute("class", "news-row");
+                row.appendChild(doc.createElement("span"));
+                row.appendChild(doc.createElement("span"));
+                list.appendChild(row);
+            }
+            List<Element> cells = new ArrayList<>(row.getChildren());
+            cells.get(0).setTextContent(item.title());
+            cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
+        }
+
+        private void renderNewsPage(Document doc) {
+            if (pending == null) return;
+            Element list = doc.getElementById("aui-news-page");
+            if (list == null) return;
+            List<MarketNews> items = pending.news();
+            List<Element> existing = new ArrayList<>(list.getChildren());
+            if (items.isEmpty()) {
+                if (existing.size() == 1 && "true".equals(existing.get(0).getAttribute("data-empty"))) return;
+                for (Element child : existing) list.removeChild(child);
+                Element empty = doc.createElement("div");
+                empty.setAttribute("class", "empty-state");
+                empty.setAttribute("data-empty", "true");
+                empty.setTextContent("暂无市场消息");
+                list.appendChild(empty);
+                setText(doc, "aui-news-hint", "暂无消息");
+                return;
+            }
+            setText(doc, "aui-news-hint", "共 " + items.size() + " 条 · 最新消息在上");
+            boolean sameStructure = existing.size() == items.size();
+            if (sameStructure) {
+                for (int i = 0; i < items.size(); i++) {
+                    if (!String.valueOf(items.get(i).id()).equals(existing.get(i).getAttribute("data-news"))) {
+                        sameStructure = false;
+                        break;
+                    }
+                }
+            }
+            if (!sameStructure) {
                 for (Element child : existing) list.removeChild(child);
                 existing.clear();
             }
             for (int i = 0; i < items.size(); i++) {
                 MarketNews item = items.get(i);
-                Element row = i < existing.size() ? existing.get(i) : doc.createElement("div");
-                if (i >= existing.size()) {
-                    row.setAttribute("class", "news-row");
-                    row.appendChild(doc.createElement("span"));
-                    row.appendChild(doc.createElement("span"));
+                Element row = i < existing.size() ? existing.get(i) : null;
+                if (row == null) {
+                    row = createNewsPageRow(doc);
                     list.appendChild(row);
                 }
-                List<Element> cells = new ArrayList<>(row.getChildren());
-                cells.get(0).setTextContent(item.title());
-                cells.get(1).setTextContent("D" + item.dayIndex() + " · " + item.detail());
+                updateNewsPageRow(row, item);
             }
+        }
+
+        private Element createNewsPageRow(Document doc) {
+            Element row = doc.createElement("div");
+            row.setAttribute("class", "news-page-row");
+            Element meta = doc.createElement("div");
+            meta.setAttribute("class", "news-page-meta");
+            meta.appendChild(doc.createElement("span"));
+            meta.appendChild(doc.createElement("span"));
+            row.appendChild(meta);
+            row.appendChild(doc.createElement("div"));
+            row.appendChild(doc.createElement("div"));
+            Element foot = doc.createElement("div");
+            foot.setAttribute("class", "news-page-foot");
+            foot.appendChild(doc.createElement("span"));
+            foot.appendChild(doc.createElement("span"));
+            row.appendChild(foot);
+            return row;
+        }
+
+        private void updateNewsPageRow(Element row, MarketNews item) {
+            row.setAttribute("data-news", String.valueOf(item.id()));
+            List<Element> children = new ArrayList<>(row.getChildren());
+            List<Element> meta = new ArrayList<>(children.get(0).getChildren());
+            meta.get(0).setTextContent(newsTypeLabel(item.type()) + " · " + item.industry());
+            meta.get(1).setTextContent("第" + item.dayIndex() + "日");
+            children.get(1).setAttribute("class", "news-page-title");
+            children.get(1).setTextContent(item.title());
+            children.get(2).setAttribute("class", "news-page-detail");
+            children.get(2).setTextContent(item.detail());
+            List<Element> foot = new ArrayList<>(children.get(3).getChildren());
+            foot.get(0).setTextContent(stockName(item.stockId()));
+            double impact = item.impactPct();
+            Element impactElement = foot.get(1);
+            impactElement.setAttribute("class", "news-page-impact"
+                    + (impact > 0 ? " up" : impact < 0 ? " down" : ""));
+            impactElement.setTextContent(impact == 0 ? "价格影响：—" : "价格影响 " + String.format("%+.2f%%", impact));
+        }
+
+        private String newsTypeLabel(String type) {
+            return switch (type) {
+                case "DIVIDEND" -> "分红消息";
+                case "SPLIT" -> "拆股消息";
+                case "HALT" -> "停牌消息";
+                default -> "市场消息";
+            };
         }
 
         private void renderStocks(Document doc) {

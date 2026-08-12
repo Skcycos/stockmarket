@@ -159,9 +159,9 @@
         .market-index { flex: none; color: var(--gold); }
         .market-index b { margin-left: 4px; }
         .market-news { display: flex; flex: 1; min-width: 0; gap: 8px; overflow: hidden; }
-        .news-row { display: flex; min-width: 0; gap: 5px; white-space: nowrap; overflow: hidden; }
-        .news-row span:first-child { color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
-        .news-row span:last-child { color: var(--muted-deep); overflow: hidden; text-overflow: ellipsis; }
+        .news-row { display: flex; flex: 1; min-width: 0; gap: 5px; white-space: nowrap; overflow: hidden; }
+        .news-row span:first-child { flex: none; max-width: 42%; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+        .news-row span:last-child { min-width: 0; color: var(--muted-deep); overflow: hidden; text-overflow: ellipsis; }
 
         .view-tabs {
             display: flex;
@@ -258,7 +258,8 @@
         .body.view-pane.active { display: flex; }
 
         .portfolio-view,
-        .orders-view {
+        .orders-view,
+        .news-view {
             flex: 1 1 auto;
             min-height: 0;
             flex-direction: column;
@@ -430,6 +431,32 @@
         .trade-history-row .trade-buy { color: var(--rise); }
         .trade-history-row .trade-sell { color: var(--fall); }
         .trade-history-row .trade-note { color: var(--muted); }
+
+        .news-page-list { flex: 1 1 auto; min-height: 0; padding-top: 8px; overflow-y: auto; }
+        .news-page-row {
+            margin-bottom: 7px;
+            padding: 10px 12px;
+            border: 1px solid var(--line-soft);
+            border-left: 3px solid var(--gold);
+            border-radius: 3px;
+            background: var(--surface-soft);
+        }
+
+        .news-page-meta,
+        .news-page-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: var(--muted-deep);
+            font-size: 10px;
+        }
+
+        .news-page-meta span:first-child { color: var(--gold); }
+        .news-page-title { padding-top: 6px; color: var(--ink); font-size: 12px; }
+        .news-page-detail { padding: 5px 0 8px; color: var(--ink-soft); font-size: 11px; line-height: 1.45; }
+        .news-page-impact.up { color: var(--rise); }
+        .news-page-impact.down { color: var(--fall); }
 
         .quote-tail.view-pane.active { display: block; }
 
@@ -822,6 +849,7 @@
             <button class="view-tab active" id="aui-tab-quotes" type="button">行情</button>
             <button class="view-tab" id="aui-tab-portfolio" type="button">持仓</button>
             <button class="view-tab" id="aui-tab-orders" type="button">委托</button>
+            <button class="view-tab" id="aui-tab-news" type="button">消息</button>
         </div>
 
         <div class="body view-pane active" id="aui-quotes-view">
@@ -952,6 +980,14 @@
             <div class="orders-page-list" id="aui-orders-page"></div>
             <div class="order-section-title">最近成交</div>
             <div class="trade-history-list" id="aui-trade-history"></div>
+        </section>
+
+        <section class="news-view view-pane" id="aui-news-view">
+            <div class="page-heading">
+                <span>市场消息</span>
+                <span class="hint" id="aui-news-hint">按时间倒序 · 最新消息在上</span>
+            </div>
+            <div class="news-page-list" id="aui-news-page"></div>
         </section>
 
         <section class="quote-tail view-pane active" id="aui-quotes-tail">
