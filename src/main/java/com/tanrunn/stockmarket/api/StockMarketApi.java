@@ -118,6 +118,23 @@ public final class StockMarketApi {
         return source != null && AUTHORIZED_WITHDRAWAL_SOURCES.contains(source.trim());
     }
 
+    // ---- panel ----
+
+    /**
+     * 打开该玩家的股市交易界面（服务端权威）。
+     *
+     * <p>必须在服务端主线程调用，玩家必须在线。内部登记 viewer 并下发
+     * {@code openPanel=true} 的行情快照，客户端据此打开 AUI 交易界面并开始
+     * 接收行情推送。玩家关闭界面后，客户端会回报并移除 viewer。</p>
+     */
+    public static void openPanel(ServerPlayer player) {
+        requirePlayer(player);
+        requireServerThread(player);
+        MarketService service = requireService();
+        service.addViewer(player.getUUID());
+        service.sendSnapshot(player, true, null);
+    }
+
     // ---- market data ----
 
     public static List<StockQuote> stocks() {

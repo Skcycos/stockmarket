@@ -60,6 +60,18 @@ var cancelAll = StockMarketApi.cancelAllOrders(player);
 但市价单和限价单会被服务端拒绝。`indices()` 返回当前综合指数，`news()` 返回最近的公司新闻、
 分红、拆股和停牌提示。
 
+## 打开交易界面
+
+```java
+import com.tanrunn.stockmarket.api.StockMarketApi;
+
+// 打开该玩家的股市交易界面（AUI 面板）。必须在服务端主线程调用，玩家必须在线。
+StockMarketApi.openPanel(player);
+```
+
+内部会登记 viewer 并下发 `openPanel=true` 的行情快照，客户端据此打开界面并开始接收推送；
+玩家关闭界面后客户端会自动回报并移除 viewer。
+
 ## 事件
 
 其他 Mod 可以注册 NeoForge 事件监听：

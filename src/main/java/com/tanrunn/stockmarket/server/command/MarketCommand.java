@@ -7,6 +7,7 @@ import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.tanrunn.stockmarket.api.StockMarketApi;
 import com.tanrunn.stockmarket.server.market.AccountService;
 import com.tanrunn.stockmarket.server.market.MarketService;
 import com.tanrunn.stockmarket.server.market.Stock;
@@ -80,10 +81,7 @@ public final class MarketCommand {
 
     private static int openPanel(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        MarketService service = MarketService.get();
-        // 打开面板必须登记 viewer，否则服务端不会推送行情快照
-        service.addViewer(player.getUUID());
-        service.sendSnapshot(player, true, null);
+        StockMarketApi.openPanel(player);
         return 1;
     }
 
