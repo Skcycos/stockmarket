@@ -100,6 +100,41 @@ public final class StockMarketApi {
         return account(player).cashCents();
     }
 
+    /**
+     * 服务端只读的股市账户摘要。
+     *
+     * <p>复用 {@link #account(ServerPlayer)}（含其服务端线程与异常语义），
+     * 不再读取 AccountService / MarketService 或内部账户数据。</p>
+     *
+     * @param player 目标玩家（必须在线）
+     * @return 只读摘要
+     * @throws IllegalArgumentException player 为 null
+     * @throws IllegalStateException 非服务端主线程调用
+     */
+    public static MarketSummary summary(ServerPlayer player) {
+        return fromAccount(account(player));
+    }
+
+    /**
+     * 纯转换（包内测试友好）：严格由 {@link AccountSnapshot} 字段推导摘要。
+     * holdingKinds 为持仓数量大于 0 的股票种类数；openOrderCount 为
+     * {@code orders().size()}。
+     */
+    static MarketSummary fromAccount(AccountSnapshot account) {
+        int holdingKinds = 0;
+        for (Integer quantity : account.holdings().values()) {
+            if (quantity != null && quantity > 0) {
+                holdingKinds++;
+            }
+        }
+        return new MarketSummary(
+                account.cashCents(),
+                account.totalValueCents(),
+                account.dailyPnlCents(),
+                holdingKinds,
+                account.orders().size());
+    }
+
     public static List<TransactionRecord> ledger(ServerPlayer player) {
         requirePlayer(player);
         requireServerThread(player);

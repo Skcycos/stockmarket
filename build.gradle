@@ -108,6 +108,13 @@ neoForge {
             sourceSet(sourceSets.main)
         }
     }
+
+    // JUnit 测试接入游戏运行环境：让测试可以使用真实 Minecraft 类
+    // （公开 API 的 null/线程守卫与签名反射守卫需要 ServerPlayer）。
+    unitTest {
+        enable()
+        testedMod = mods.named("${mod_id}")
+    }
 }
 
 // Sets up a dependency configuration called 'localRuntime'.
@@ -123,14 +130,22 @@ dependencies {
     // 服务端 dev 运行（./gradlew runServer -PserverOnly）不需要 AUI（客户端专属），
     // 此时降级为 compileOnly 避免 AUI 在专用服务器上被加载。
     if (project.hasProperty('serverOnly')) {
-        compileOnly "com.sighs:ApricityUI-neoforge-1.21.1:1.2.1"
+        compileOnly "com.sighs:ApricityUI-neoforge-1.21.1:1.2.3.1"
     } else {
-        implementation "com.sighs:ApricityUI-neoforge-1.21.1:1.2.1"
+        implementation "com.sighs:ApricityUI-neoforge-1.21.1:1.2.3.1"
     }
 
     // Unit tests for the pure price/trade logic
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // 公开 API 守卫测试的 mock 玩家（与 buildshop/chinese-oracle 保持一致）。
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+}
+
+// FML-JUnit 会在测试 JVM 中加载 classpath 上的全部 Mod；ApricityUI 是客户端专属 Mod，
+// 在测试环境加载会失败（与 runServer 的 serverOnly 处理同理），测试运行时排除它。
+configurations.testRuntimeClasspath {
+    exclude group: 'com.sighs', module: 'ApricityUI-neoforge-1.21.1'
 }
 
 test {
