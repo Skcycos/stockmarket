@@ -105,13 +105,13 @@ class OrderBookTest {
         long id = book.place(PLAYER, "aaa", true, 10.0, 100);
 
         // 玩家离线：sink 拒绝成交 -> 订单必须保留，且仍可撤单
-        book.match("aaa", 9.0, (order, fillPrice) -> false);
+        book.match("aaa", 11.0, (order, fillPrice) -> false);
         assertEquals(1, book.size(), "offline order must stay in the book");
         assertNotNull(book.cancel(id), "offline order must stay cancellable");
 
         // 玩家上线后：确认成交 -> 订单移除，成交价为委托价（触发式）
         book.place(PLAYER, "aaa", true, 10.0, 100);
-        book.match("aaa", 11.0, (order, fillPrice) -> {
+        book.match("aaa", 9.0, (order, fillPrice) -> {
             assertEquals(10.0, fillPrice, 0.001);
             return true;
         });
@@ -221,12 +221,29 @@ class OrderBookTest {
         book.setDirtyHandler(() -> dirtyCount[0]++);
         book.match("aaa", 10.0, (o, p) -> true);
         assertEquals(1, dirtyCount[0], "a confirmed fill must mark the book dirty");
-        // 价格未触发（9.0 低于买单限价 10.0）：订单保留，不应标记 dirty（无实际变化）
+        // 价格未触发（11.0 高于买单限价 10.0）：订单保留，不应标记 dirty（无实际变化）
         book.place(PLAYER, "aaa", true, 10.0, 100);
         dirtyCount[0] = 0;
-        book.match("aaa", 9.0, (o, p) -> false);
+        book.match("aaa", 11.0, (o, p) -> false);
         assertEquals(0, dirtyCount[0], "an untriggered order changes nothing");
         assertEquals(1, book.size());
+    }
+
+    @Test
+    void limitOrdersOnlyFillAtTheirFavorablePrice() {
+        OrderBook book = new OrderBook();
+        long buyId = book.place(PLAYER, "aaa", true, 10.0, 1);
+        long sellId = book.place(PLAYER, "bbb", false, 12.0, 1);
+
+        book.match("aaa", 10.01, (order, price) -> true);
+        book.match("bbb", 11.99, (order, price) -> true);
+        assertNotNull(book.get(buyId), "a buy limit must not fill above its limit");
+        assertNotNull(book.get(sellId), "a sell limit must not fill below its limit");
+
+        book.match("aaa", 10.0, (order, price) -> true);
+        book.match("bbb", 12.0, (order, price) -> true);
+        assertNull(book.get(buyId), "a buy limit fills when the market reaches its limit");
+        assertNull(book.get(sellId), "a sell limit fills when the market reaches its limit");
     }
 
     @Test

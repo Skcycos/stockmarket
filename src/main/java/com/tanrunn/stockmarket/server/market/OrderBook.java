@@ -7,9 +7,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Limit order book. Whole-fill matching with trigger semantics: a buy order
- * fills when the market price rises to/at its limit, a sell order when the
- * market price falls to/at its limit. Fills execute at the order's limit price.
+ * Limit order book. Whole-fill matching with limit semantics: a buy order
+ * fills when the market price falls to/at its limit, a sell order when the
+ * market price rises to/at its limit. Fills execute at the order's limit price.
  * Side effects (account transfers, notifications) are delegated to a MatchSink
  * so the matching logic stays pure.
  *
@@ -158,7 +158,7 @@ public final class OrderBook {
         List<Long> filled = new ArrayList<>();
         for (Order order : orders.values()) {
             if (!order.stockId().equals(stockId)) continue;
-            boolean hits = order.buy() ? marketPrice >= order.price() : marketPrice <= order.price();
+            boolean hits = order.buy() ? marketPrice <= order.price() : marketPrice >= order.price();
             if (!hits) continue;
             if (sink.onFill(order, order.price())) {
                 filled.add(order.id());
