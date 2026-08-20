@@ -135,7 +135,9 @@ dependencies {
         implementation "com.sighs:ApricityUI-neoforge-1.21.1:1.2.3.1"
     }
 
-    // Unit tests for the pure price/trade logic
+    // Unit tests for the pure price/trade logic and serializable player attachments.
+    // ModDevGradle keeps Minecraft's compile artifacts off the normal test source set.
+    testImplementation files(sourceSets.main.compileClasspath)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // 公开 API 守卫测试的 mock 玩家（与 buildshop/chinese-oracle 保持一致）。

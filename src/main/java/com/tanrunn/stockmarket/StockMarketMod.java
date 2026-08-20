@@ -32,10 +32,12 @@ public class StockMarketMod {
     private static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES =
             DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, MODID);
 
-    // Per-player stock account, stored with the player dat.
+    // Per-player stock account, stored with the player dat. Player respawn creates a
+    // new entity, so the attachment must be copied or the login hook would treat a
+    // previously active account as new and grant initialCash again.
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<AccountData>> ACCOUNT =
             ATTACHMENT_TYPES.<AttachmentType<AccountData>>register("account",
-                    () -> AttachmentType.serializable(AccountData::new).build());
+                    () -> AttachmentType.serializable(AccountData::new).copyOnDeath().build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
