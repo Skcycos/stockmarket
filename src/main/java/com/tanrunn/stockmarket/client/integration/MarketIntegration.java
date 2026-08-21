@@ -4,6 +4,7 @@ import com.sighs.apricityui.init.Document;
 import com.sighs.apricityui.init.Element;
 import com.sighs.apricityui.screen.ApricityScreen;
 import com.sighs.apricityui.event.MouseEvent;
+import com.tanrunn.stockmarket.api.BankTransferRequest;
 import com.tanrunn.stockmarket.common.Candle;
 import com.tanrunn.stockmarket.common.AccountInfo;
 import com.tanrunn.stockmarket.common.MarketIndexInfo;
@@ -11,6 +12,7 @@ import com.tanrunn.stockmarket.common.MarketNews;
 import com.tanrunn.stockmarket.common.OrderInfo;
 import com.tanrunn.stockmarket.common.StockInfo;
 import com.tanrunn.stockmarket.common.TradeInfo;
+import com.tanrunn.stockmarket.common.network.BankTransferRequestC2S;
 import com.tanrunn.stockmarket.common.network.CancelOrderRequestC2S;
 import com.tanrunn.stockmarket.common.network.CancelAllOrdersRequestC2S;
 import com.tanrunn.stockmarket.common.network.LimitOrderRequestC2S;
@@ -26,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * ApricityUI market screen (HARD dependency — AUI is always present). Opens on
@@ -43,6 +46,10 @@ public final class MarketIntegration {
     private static final long REQUEST_COOLDOWN_MS = 900;
     private static final DecimalFormat VOLUME = new DecimalFormat("#,##0");
     private static final double KLINE_RASTER_SCALE = 2.0;
+    /** 银行桥接：客户端金额为整数铜币（1 证券资金 = 1 铜币）；服务端为权威上限。 */
+    private static final long BANK_AMOUNT_STEP_COINS = 5;
+    private static final long BANK_AMOUNT_MIN_COINS = 1;
+    private static final long BANK_AMOUNT_MAX_COINS = 1_000_000L;
 
     private static MarketScreen screen;
 
@@ -60,6 +67,13 @@ public final class MarketIntegration {
         }
     }
 
+    static String activeClassValue(String base, boolean active) {
+        String safeBase = base == null
+                ? ""
+                : base.replace(" active", "").replace("active", "").trim();
+        return active ? (safeBase + " active").trim() : safeBase;
+    }
+
     private static final class MarketScreen extends ApricityScreen {
         private String selectedStockId;
         private int quantity = 100;
@@ -75,6 +89,10 @@ public final class MarketIntegration {
         private String armedAction;
         private long armedUntil;
         private long lastTradeRequestAt;
+        private long bankAmountCoins = 10;
+        private String armedBankAction;
+        private long armedBankUntil;
+        private long lastBankRequestAt;
         private boolean showMa5 = true;
         private boolean showMa10 = true;
         private boolean showVolume = true;
@@ -173,6 +191,125 @@ public final class MarketIntegration {
                 refresh.addEventListener("click", event ->
                         PacketDistributor.sendToServer(new MarketRequestC2S(false, false)));
             }
+            bindBank(doc);
+        }
+
+        /** 银行桥接区控件（进 bindDocument 生命周期，页面刷新后重新绑定）。金额为整数铜币。 */
+        private void bindBank(Document doc) {
+            Element minus = doc.getElementById("aui-bank-minus");
+            if (minus != null) {
+                minus.addEventListener("click", event -> adjustBankAmount(doc, -BANK_AMOUNT_STEP_COINS));
+            }
+            Element plus = doc.getElementById("aui-bank-plus");
+            if (plus != null) {
+                plus.addEventListener("click", event -> adjustBankAmount(doc, +BANK_AMOUNT_STEP_COINS));
+            }
+            bindBankQuick(doc, "aui-bank-q-5", 5);
+            bindBankQuick(doc, "aui-bank-q-10", 10);
+            bindBankQuick(doc, "aui-bank-q-50", 50);
+            bindBankQuick(doc, "aui-bank-q-100", 100);
+            bindBankQuick(doc, "aui-bank-q-500", 500);
+            Element deposit = doc.getElementById("aui-bank-deposit");
+            if (deposit != null) {
+                deposit.addEventListener("click", event -> bankAction(doc,
+                        BankTransferRequest.Direction.DEPOSIT_TO_SECURITIES, "入金到证券账户"));
+            }
+            Element withdraw = doc.getElementById("aui-bank-withdraw");
+            if (withdraw != null) {
+                withdraw.addEventListener("click", event -> bankAction(doc,
+                        BankTransferRequest.Direction.WITHDRAW_TO_BANK, "提现到银行"));
+            }
+        }
+
+        private void adjustBankAmount(Document doc, long deltaCoins) {
+            bankAmountCoins = clampBankAmount(bankAmountCoins + deltaCoins);
+            setText(doc, "aui-bank-amount", String.valueOf(bankAmountCoins));
+        }
+
+        private void bindBankQuick(Document doc, String id, long coins) {
+            Element button = doc.getElementById(id);
+            if (button == null) return;
+            button.addEventListener("click", event -> {
+                bankAmountCoins = clampBankAmount(coins);
+                setText(doc, "aui-bank-amount", String.valueOf(bankAmountCoins));
+            });
+        }
+
+        private static long clampBankAmount(long coins) {
+            return Math.max(BANK_AMOUNT_MIN_COINS, Math.min(coins, BANK_AMOUNT_MAX_COINS));
+        }
+
+        /**
+         * 银行入金/出金：两次点击确认 + 全局冷却。金额为整数铜币：
+         * 入金 = 从 LC 扣 N 铜币并给证券 +N（1 证券资金 = 1 铜币）；
+         * 出金 = 请求证券 N（=N*100 分），实际扣款与 ATM 到账以服务器规则
+         * （向上取整到整数铜币）为准。客户端不做乐观改余额，只发送原始请求
+         * 并等待服务端权威快照。
+         */
+        private void bankAction(Document doc, BankTransferRequest.Direction direction, String label) {
+            if (pending == null || !pending.bankBridgeAvailable()) {
+                setText(doc, "aui-bank-msg", "银行桥接不可用");
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (now - lastBankRequestAt < REQUEST_COOLDOWN_MS) {
+                setText(doc, "aui-bank-msg", "上一笔银行请求仍在处理中，请稍候");
+                return;
+            }
+            long coins = bankAmountCoins;
+            String key = "bank:" + direction.name() + ":" + coins;
+            if (!key.equals(armedBankAction) || now > armedBankUntil) {
+                armedBankAction = key;
+                armedBankUntil = now + CONFIRM_WINDOW_MS;
+                String prompt;
+                if (direction == BankTransferRequest.Direction.DEPOSIT_TO_SECURITIES) {
+                    prompt = "再次点击“" + label + "”确认：LC 扣 " + coins + " 铜币，证券 +" + coins;
+                } else {
+                    prompt = "再次点击“" + label + "”确认：请求出金 " + coins
+                            + "（实际扣款与 ATM 到账以服务器为准）";
+                }
+                setText(doc, "aui-bank-msg", prompt);
+                return;
+            }
+            armedBankAction = null;
+            armedBankUntil = 0;
+            lastBankRequestAt = now;
+            setText(doc, "aui-bank-msg", label + "请求已发送，等待服务器确认");
+            long requestedCopper = 0;
+            long requestedSecuritiesCents = 0;
+            if (direction == BankTransferRequest.Direction.DEPOSIT_TO_SECURITIES) {
+                requestedCopper = coins;
+            } else {
+                requestedSecuritiesCents = Math.multiplyExact(coins, 100L);
+            }
+            PacketDistributor.sendToServer(new BankTransferRequestC2S(direction,
+                    requestedCopper, requestedSecuritiesCents, UUID.randomUUID().toString()));
+        }
+
+        /** 渲染银行桥接状态（LC 未安装时显示不可用并禁用按钮，不留可点击危险按钮）。 */
+        private void renderBankBridge(Document doc) {
+            if (pending == null) return;
+            boolean available = pending.bankBridgeAvailable();
+            setText(doc, "aui-bank-status", available ? "桥接可用" : "银行桥接不可用");
+            Element status = doc.getElementById("aui-bank-status");
+            if (status != null) {
+                status.setAttribute("class", "bank-bridge-status" + (available ? "" : " off"));
+            }
+            // 银行余额单位 = 铜币；1 证券资金 = 1 铜币。
+            setText(doc, "aui-bank-balance", String.format("%,d", pending.bankBalanceCopper()));
+            setText(doc, "aui-bank-amount", String.valueOf(bankAmountCoins));
+            setBankControlActive(doc, "aui-bank-deposit", available);
+            setBankControlActive(doc, "aui-bank-withdraw", available);
+            setBankControlActive(doc, "aui-bank-minus", available);
+            setBankControlActive(doc, "aui-bank-plus", available);
+        }
+
+        private static void setBankControlActive(Document doc, String id, boolean active) {
+            Element el = doc.getElementById(id);
+            if (el == null) return;
+            String base = el.getAttribute("class");
+            base = base == null ? "" : base.replace(" off-disabled", "").trim();
+            el.setAttribute("class", active ? base : (base + " off-disabled").trim());
         }
 
         @Override
@@ -405,6 +542,7 @@ public final class MarketIntegration {
             renderMarketOverview(doc);
             renderNewsPage(doc);
             renderAccount(doc, pending.account());
+            renderBankBridge(doc);
             renderKlineControls(doc);
             renderSelected(doc);
             switchView(doc, currentView);
@@ -1307,9 +1445,7 @@ public final class MarketIntegration {
         private static void setActive(Document doc, String id, boolean active) {
             Element el = doc.getElementById(id);
             if (el == null) return;
-            String base = el.getAttribute("class");
-            base = base.replace(" active", "").replace("active", "").trim();
-            el.setAttribute("class", active ? base + " active" : base);
+            el.setAttribute("class", activeClassValue(el.getAttribute("class"), active));
         }
     }
 }

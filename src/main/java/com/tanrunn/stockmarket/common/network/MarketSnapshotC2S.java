@@ -17,6 +17,7 @@ import java.util.Map;
 /**
  * Server → client: full market snapshot (stocks + viewer's account). Carries an
  * `openPanel` flag so the client knows whether to open the AUI screen or refresh.
+ * Also carries the optional bank-bridge state (LC not installed → unavailable).
  */
 public record MarketSnapshotC2S(
         boolean openPanel,
@@ -25,15 +26,23 @@ public record MarketSnapshotC2S(
         AccountInfo account,
         List<MarketIndexInfo> indices,
         List<MarketNews> news,
-        int maxOrderQty) implements CustomPacketPayload {
+        int maxOrderQty,
+        boolean bankBridgeAvailable,
+        long bankBalanceCopper,
+        String bankBridgeName) implements CustomPacketPayload {
 
     public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account) {
-        this(openPanel, message, stocks, account, List.of(), List.of(), 9999);
+        this(openPanel, message, stocks, account, List.of(), List.of(), 9999, false, 0, "");
     }
 
     public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account,
                              List<MarketIndexInfo> indices, List<MarketNews> news) {
-        this(openPanel, message, stocks, account, indices, news, 9999);
+        this(openPanel, message, stocks, account, indices, news, 9999, false, 0, "");
+    }
+
+    public MarketSnapshotC2S(boolean openPanel, String message, List<StockInfo> stocks, AccountInfo account,
+                             List<MarketIndexInfo> indices, List<MarketNews> news, int maxOrderQty) {
+        this(openPanel, message, stocks, account, indices, news, maxOrderQty, false, 0, "");
     }
 
     public MarketSnapshotC2S {
@@ -41,6 +50,8 @@ public record MarketSnapshotC2S(
         indices = List.copyOf(indices == null ? List.of() : indices);
         news = List.copyOf(news == null ? List.of() : news);
         maxOrderQty = Math.max(1, maxOrderQty);
+        bankBridgeName = bankBridgeName == null ? "" : bankBridgeName;
+        bankBalanceCopper = Math.max(0, bankBalanceCopper);
     }
 
     public static final Type<MarketSnapshotC2S> TYPE = new Type<>(
@@ -86,6 +97,9 @@ public record MarketSnapshotC2S(
                         buf.readUtf(32), buf.readUtf(256), buf.readUtf(512), buf.readDouble()));
             }
             int maxOrderQty = buf.readVarInt();
+            boolean bankBridgeAvailable = buf.readBoolean();
+            long bankBalanceCopper = buf.readVarLong();
+            String bankBridgeName = buf.readUtf(32);
             double cash = buf.readDouble();
             double totalValue = buf.readDouble();
             double holdingsValue = buf.readDouble();
@@ -126,7 +140,8 @@ public record MarketSnapshotC2S(
                 new AccountInfo(cash, totalValue, holdingsValue, unrealizedPnl, realizedPnl,
                             dailyPnl, totalPnl, reservedCash, availableHoldingsValue,
                             reservedHoldingsValue, availableHoldingsQuantity, reservedHoldingsQuantity,
-                            holdings, costBasis, orders, trades), indices, news, maxOrderQty);
+                            holdings, costBasis, orders, trades), indices, news,
+                    maxOrderQty, bankBridgeAvailable, bankBalanceCopper, bankBridgeName);
         }
 
         @Override
@@ -175,6 +190,9 @@ public record MarketSnapshotC2S(
                 buf.writeDouble(item.impactPct());
             }
             buf.writeVarInt(value.maxOrderQty());
+            buf.writeBoolean(value.bankBridgeAvailable());
+            buf.writeVarLong(value.bankBalanceCopper());
+            buf.writeUtf(value.bankBridgeName(), 32);
             buf.writeDouble(value.account().cash());
             buf.writeDouble(value.account().totalValue());
             buf.writeDouble(value.account().holdingsValue());

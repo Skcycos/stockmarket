@@ -28,9 +28,16 @@ import com.tanrunn.stockmarket.api.event.BalanceChangedEvent;
  * package. They must not reach into {@code AccountData}, {@code OrderBook}, or
  * {@code TradeEngine}. All mutating methods are server-authoritative and must
  * be called on the server thread.</p>
+ *
+ * <p><b>API_VERSION 4 变更</b>：银行桥接金额单位明确为 LC 铜币（1 铜币 = 1 LC
+ * {@code main} core value），与证券内部 cents 的换算集中到 {@link ExchangeRates}
+ * （玩家可见规则「1 证券资金 = 1 铜币」）；{@link CurrencyBridge} 以
+ * {@code balanceCopper} / {@code actualCopper} 表达单位；转账改用阶段状态机
+ * （{@link BankTransferPhase}），资金操作幂等键一律使用 {@link OperationIds}
+ * 生成的内部 opId。证券资产日常交易仍完全操作 StockMarket 自有证券账户。</p>
  */
 public final class StockMarketApi {
-    public static final String API_VERSION = "2";
+    public static final String API_VERSION = "4";
     private static final Map<String, CurrencyBridge> CURRENCY_BRIDGES = new ConcurrentHashMap<>();
     private static final Set<String> AUTHORIZED_WITHDRAWAL_SOURCES = ConcurrentHashMap.newKeySet();
 

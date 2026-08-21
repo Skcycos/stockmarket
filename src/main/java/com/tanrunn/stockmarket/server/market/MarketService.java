@@ -271,7 +271,10 @@ public final class MarketService {
         double totalValue = round2(account.cash() + holdingsValue + reservedCash);
         long day = currentDay(player);
         AccountService.ensureDailyBaseline(player, day, totalValue);
-        double dailyPnl = round2(totalValue - AccountService.dailyBaseline(player));
+        double dailyPnl = DailyPnlCalculator.calculate(
+                totalValue,
+                AccountService.dailyBaseline(player),
+                AccountService.dailyExternalCashFlowCents(player, day));
         double totalPnl = round2(account.realizedPnl() + unrealizedPnl);
         List<OrderInfo> orders = playerOrders.stream()
                 .map(o -> new OrderInfo(o.id(), o.stockId(), o.buy(), o.price(), o.quantity()))
@@ -441,8 +444,28 @@ public final class MarketService {
     }
 
     public MarketSnapshotC2S snapshotFor(ServerPlayer player, boolean openPanel, String message) {
+        BankSnapshot bank = bankSnapshot(player);
         return new MarketSnapshotC2S(openPanel, message, snapshot(), accountInfo(player), indices(), news(),
-                Config.MAX_ORDER_QTY.get());
+                Config.MAX_ORDER_QTY.get(), bank.available, bank.balanceCopper, bank.name);
+    }
+
+    /** 银行桥接状态（LC 未安装/不可用时 unavailable，不抛异常、不影响快照其余部分）。
+     *  余额单位 = LC 铜币（1 证券资金 = 1 铜币）。 */
+    public record BankSnapshot(boolean available, long balanceCopper, String name) {
+    }
+
+    public BankSnapshot bankSnapshot(ServerPlayer player) {
+        try {
+            java.util.Optional<com.tanrunn.stockmarket.api.CurrencyBridge> bridge =
+                    com.tanrunn.stockmarket.api.StockMarketApi.currencyBridge(Config.BANK_BRIDGE_ID.get());
+            if (bridge.isPresent() && bridge.get().isAvailable()) {
+                long balance = bridge.get().balanceCopper(player.getUUID());
+                return new BankSnapshot(true, Math.max(0, balance), bridge.get().displayName());
+            }
+        } catch (RuntimeException ignored) {
+            // 桥接查询失败按不可用处理（fail closed）。
+        }
+        return new BankSnapshot(false, 0L, "");
     }
 
     private HoldingAccount normalizedAccount(ServerPlayer player) {

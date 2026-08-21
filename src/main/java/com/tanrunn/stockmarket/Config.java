@@ -61,5 +61,26 @@ public class Config {
             .comment("Maximum absolute news price impact")
             .defineInRange("newsImpactMax", 0.08, 0.0, 1.0);
 
+    // ---- 银行桥接（LC 个人 ATM 账户 ⇄ 证券账户） ----
+
+    public static final ModConfigSpec.ConfigValue<String> BANK_BRIDGE_ID = BUILDER
+            .comment("Bank bridge id registered into StockMarketApi by the economy Mod (Server Menu).",
+                    "Empty/unknown id means the bank bridge is unavailable.")
+            .define("bankBridgeId", "server_menu:lc_bank_main");
+
+    public static final ModConfigSpec.LongValue MAX_BANK_DEPOSIT_COPPER = BUILDER
+            .comment("Maximum single bank→securities deposit amount in LC copper coins.",
+                    "1 copper = 1 securities display unit (internal +100 cents per copper).")
+            .defineInRange("maxBankDepositCopper", 10_000_000L, 1L, 9_000_000_000_000_000L);
+
+    public static final ModConfigSpec.LongValue MAX_BANK_WITHDRAW_CENTS = BUILDER
+            .comment("Maximum single securities→bank withdrawal request in internal cents",
+                    "(display amount x 100). Rounded up to whole copper before debit.")
+            .defineInRange("maxBankWithdrawCents", 1_000_000_000L, 1L, 9_000_000_000_000_000_000L);
+
+    public static final ModConfigSpec.IntValue BANK_TRANSFER_COOLDOWN_TICKS = BUILDER
+            .comment("Minimum server ticks between two bank transfers by the same player (e.g. 20 = 1 second).")
+            .defineInRange("bankTransferCooldownTicks", 20, 0, 1200);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 }

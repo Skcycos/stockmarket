@@ -49,6 +49,7 @@ public final class AccountService {
         data.lastCorporateActionId = service == null ? 0 : service.latestCorporateActionId();
         data.trades.clear();
         data.ledger.clear();
+        data.transfers.clear();
         player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
     }
 
@@ -82,6 +83,38 @@ public final class AccountService {
         player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
     }
 
+    // ---- bank transfer ledger ----
+
+    public static java.util.List<com.tanrunn.stockmarket.api.BankTransferRecord> transfers(
+            net.minecraft.server.level.ServerPlayer player) {
+        return java.util.List.copyOf(data(player).transfers);
+    }
+
+    public static com.tanrunn.stockmarket.api.BankTransferRecord findTransferByRequestId(
+            net.minecraft.server.level.ServerPlayer player, String requestId) {
+        if (requestId == null || requestId.isBlank()) {
+            return null;
+        }
+        // 防重：详细账本优先，其次持久化墓碑（旧 requestId 依旧被挡住）。
+        return data(player).findByRequestId(requestId);
+    }
+
+    public static void recordTransfer(net.minecraft.server.level.ServerPlayer player,
+                                      com.tanrunn.stockmarket.api.BankTransferRecord transfer) {
+        AccountData data = data(player);
+        data.addTransfer(transfer);
+        player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
+    }
+
+    /** 阶段状态机写入：按 requestId upsert；安全终态同步写入持久化墓碑。 */
+    public static boolean upsertTransfer(net.minecraft.server.level.ServerPlayer player,
+                                         com.tanrunn.stockmarket.api.BankTransferRecord transfer) {
+        AccountData data = data(player);
+        boolean ok = data.upsertTransfer(transfer);
+        player.setData(com.tanrunn.stockmarket.StockMarketMod.ACCOUNT.get(), data);
+        return ok;
+    }
+
     /** Initializes or rolls the daily equity baseline for an online player. */
     public static void ensureDailyBaseline(net.minecraft.server.level.ServerPlayer player,
                                             long dayIndex, double currentValue) {
@@ -95,6 +128,11 @@ public final class AccountService {
 
     public static double dailyBaseline(net.minecraft.server.level.ServerPlayer player) {
         return data(player).dailyBaselineValue;
+    }
+
+    public static long dailyExternalCashFlowCents(
+            net.minecraft.server.level.ServerPlayer player, long dayIndex) {
+        return data(player).dailyExternalCashFlowCents(dayIndex);
     }
 
     private static double round2(double value) {

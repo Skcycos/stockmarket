@@ -8,7 +8,7 @@
 ## 当前版本
 
 - Mod ID：`stockmarket`
-- Mod 版本：`1.0.0`
+- Mod 版本：`1.0.1`
 - Minecraft：`1.21.1`
 - NeoForge：`21.1.248`
 - Java：`21`
@@ -56,19 +56,19 @@
 
 客户端需要同时安装：
 
-1. `stockmarket-1.0.0.jar`
+1. `stockmarket-1.0.1.jar`
 2. ApricityUI NeoForge 1.21.1 `1.2.1`
 
 ApricityUI 是客户端 UI 运行时依赖。相关文档：[ApricityUI 文档](https://doc.sighs.cc/ApricityUI)。
 
 ### 专用服务器
 
-将 `stockmarket-1.0.0.jar` 放入服务器的 `mods` 目录即可。ApricityUI 依赖声明为客户端侧依赖，专用服务器不需要安装 AUI。
+将 `stockmarket-1.0.1.jar` 放入服务器的 `mods` 目录即可。ApricityUI 依赖声明为客户端侧依赖，专用服务器不需要安装 AUI。
 
 构建产物位于：
 
 ```text
-build/libs/stockmarket-1.0.0.jar
+build/libs/stockmarket-1.0.1.jar
 ```
 
 ## 玩家命令

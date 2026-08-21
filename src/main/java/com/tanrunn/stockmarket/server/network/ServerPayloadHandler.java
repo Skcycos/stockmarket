@@ -1,5 +1,6 @@
 package com.tanrunn.stockmarket.server.network;
 
+import com.tanrunn.stockmarket.common.network.BankTransferRequestC2S;
 import com.tanrunn.stockmarket.common.network.CancelOrderRequestC2S;
 import com.tanrunn.stockmarket.common.network.CancelAllOrdersRequestC2S;
 import com.tanrunn.stockmarket.common.network.LimitOrderRequestC2S;
@@ -13,6 +14,18 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ServerPayloadHandler {
     private ServerPayloadHandler() {
+    }
+
+    public static void handle(BankTransferRequestC2S payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.flow().isServerbound() && context.player() instanceof ServerPlayer player
+                    && MarketService.get() != null) {
+                // 服务端权威：金额/冷却/幂等全部在 coordinator 内校验，
+                // 结果以权威快照回发，客户端不做乐观改值。
+                com.tanrunn.stockmarket.server.transfer.BankTransferCoordinator.INSTANCE
+                        .execute(player, payload.toRequest(), true);
+            }
+        });
     }
 
     public static void handle(MarketRequestC2S payload, IPayloadContext context) {

@@ -54,6 +54,11 @@ public class StockMarketMod {
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(MarketHooks.class);
 
+        // 银行 ⇄ 证券转账的出金来源：由本 Mod 自身注册为受信任来源
+        // （证券侧扣款走 StockMarketApi.withdraw，必须授权）。
+        com.tanrunn.stockmarket.api.StockMarketApi.registerWithdrawalSource(
+                com.tanrunn.stockmarket.api.BankTransferService.SOURCE);
+
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }

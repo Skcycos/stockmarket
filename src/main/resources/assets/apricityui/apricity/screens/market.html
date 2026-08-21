@@ -143,6 +143,47 @@
             text-overflow: ellipsis;
         }
 
+        /* ---- 银行桥接区（LC 个人 ATM 账户 ⇄ 证券账户） ---- */
+        .bank-bridge {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px 12px;
+            min-height: 30px;
+            padding: 6px 15px 7px;
+            border-bottom: 1px solid var(--line-soft);
+            background: var(--surface-soft);
+            color: var(--muted);
+            font-size: 10px;
+        }
+        .bank-bridge-status { color: var(--gold); }
+        .bank-bridge-status.off { color: var(--fall); }
+        .bank-bridge b { color: var(--ink-soft); font-size: 11px; }
+        .bank-amount-stepper { display: inline-flex; align-items: center; gap: 2px; }
+        .bank-amount-stepper button {
+            min-width: 22px; padding: 2px 5px;
+            border: 1px solid var(--line-soft); border-radius: 3px;
+            background: var(--surface); color: var(--ink-soft);
+            font: inherit; font-size: 10px;
+        }
+        .bank-amount-stepper button:hover { background: var(--hover); color: var(--gold); }
+        .bank-quick button {
+            min-width: 42px; padding: 2px 4px;
+            border: 1px solid var(--line-soft); border-radius: 3px;
+            background: var(--surface); color: var(--muted);
+            font: inherit; font-size: 9px;
+        }
+        .bank-quick button:hover { background: var(--hover); color: var(--gold); }
+        .bank-actions button {
+            min-width: 48px; padding: 3px 9px;
+            border: 1px solid var(--line-soft); border-radius: 3px;
+            background: var(--surface); color: var(--gold);
+            font: inherit; font-size: 10px;
+        }
+        .bank-actions button:hover:not(:disabled) { background: var(--hover); color: var(--gold); }
+        .bank-actions button:disabled, .bank-actions button.off-disabled { opacity: .35; cursor: default; }
+        .bank-bridge-msg { flex-basis: 100%; color: var(--muted-deep); }
+
         .market-overview {
             display: flex;
             align-items: center;
@@ -807,6 +848,28 @@
             </div>
         </div>
         <div class="account-detail" id="aui-account-detail">余银 — · 冻结银两 — · 可用持股 — · 冻结持股 —</div>
+        <div class="bank-bridge" id="aui-bank-bridge">
+            <span>银行桥接</span>
+            <span class="bank-bridge-status" id="aui-bank-status">—</span>
+            <span>银行余额 <b id="aui-bank-balance">—</b></span>
+            <span class="bank-amount-stepper">
+                <button id="aui-bank-minus" type="button">−</button>
+                <b id="aui-bank-amount">10</b>
+                <button id="aui-bank-plus" type="button">＋</button>
+            </span>
+            <span class="bank-quick">
+                <button id="aui-bank-q-5" type="button">5</button>
+                <button id="aui-bank-q-10" type="button">10</button>
+                <button id="aui-bank-q-50" type="button">50</button>
+                <button id="aui-bank-q-100" type="button">100</button>
+                <button id="aui-bank-q-500" type="button">500</button>
+            </span>
+            <span class="bank-actions">
+                <button id="aui-bank-deposit" type="button">入金</button>
+                <button id="aui-bank-withdraw" type="button">出金</button>
+            </span>
+            <span class="bank-bridge-msg" id="aui-bank-msg">1 证券资金 = 1 铜币 · 入金：银行→证券；出金：证券→银行</span>
+        </div>
         <div class="market-overview">
             <span class="market-index">食韵大盘 <b id="aui-index-summary">—</b> <b id="aui-index-change">—</b></span>
             <div class="market-news" id="aui-news-list"><span>暂无见闻</span></div>

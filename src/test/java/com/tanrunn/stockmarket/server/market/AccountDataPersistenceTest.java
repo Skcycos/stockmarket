@@ -1,6 +1,7 @@
 package com.tanrunn.stockmarket.server.market;
 
 import com.tanrunn.stockmarket.api.TransactionRecord;
+import com.tanrunn.stockmarket.api.BankTransferService;
 import com.tanrunn.stockmarket.common.TradeInfo;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +9,22 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AccountDataPersistenceTest {
+
+    @Test
+    void dailyExternalCashFlowOnlyIncludesLcBankBridge() {
+        AccountData data = new AccountData();
+        data.ledger.add(new TransactionRecord("lc-deposit", "request-1", 7,
+                10_000, 11_000, BankTransferService.SOURCE, "入金到证券账户"));
+        data.ledger.add(new TransactionRecord("lc-withdraw", "request-2", 7,
+                -3_000, 8_000, BankTransferService.SOURCE, "提现到银行"));
+        data.ledger.add(new TransactionRecord("quest", "request-3", 7,
+                5_000, 13_000, "quest", "任务奖励"));
+        data.ledger.add(new TransactionRecord("other-day", "request-4", 6,
+                99_000, 99_000, BankTransferService.SOURCE, "旧日期"));
+
+        assertEquals(7_000, data.dailyExternalCashFlowCents(7));
+        assertEquals(99_000, data.dailyExternalCashFlowCents(6));
+    }
 
     /**
      * AttachmentType.copyOnDeath copies a serializable attachment by serializing
